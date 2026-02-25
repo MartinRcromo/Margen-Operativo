@@ -1,0 +1,5 @@
+{
+  "name": "Margen Operativo por Línea — Motor de Drivers (OK)",
+  "description": "Una herramienta para analistas que permite subir archivos CSV de productos, gastos y costos fijos. Asigna gastos a productos mediante 'drivers' de negocio y permite simular escenarios para evaluar la rentabilidad y el margen operativo.",
+  "requestFramePermissions": []
+}
