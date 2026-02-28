@@ -9,3 +9,24 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Prevent clickjacking — do not allow this page inside an iframe
+    X-Frame-Options = "DENY"
+    # Prevent MIME-type sniffing
+    X-Content-Type-Options = "nosniff"
+    # Enforce HTTPS for 1 year (only active on HTTPS, Netlify is always HTTPS)
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # Control referrer information sent to other sites
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    # Disable unnecessary browser features
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+    # Content Security Policy
+    # - script-src 'self': only scripts from this origin (Vite bundles everything)
+    # - style-src 'self' 'unsafe-inline': needed for inline <style> in index.html
+    # - connect-src: allow Supabase REST + WebSocket (for realtime)
+    # - img-src 'self' data:: allow base64 images
+    # - frame-ancestors 'none': redundant with X-Frame-Options but covers CSP-aware browsers
+    Content-Security-Policy = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';"
