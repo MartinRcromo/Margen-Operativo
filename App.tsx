@@ -17,6 +17,7 @@ import Banner from './components/Banner';
 import BiRecommendations from './components/BiRecommendations';
 import DunDashboard from './components/DunDashboard';
 import ObjetivoPanel from './components/ObjetivoPanel';
+import AiPanel from './components/AiPanel';
 import AddProductModal from './components/AddProductModal';
 import DeleteProductModal from './components/DeleteProductModal';
 import DunFilterBar from './components/DunFilterBar';
@@ -633,6 +634,16 @@ const App: React.FC = () => {
           onApplyGastos={(pct) => setGastosOperativosPct(-pct)}
         />
       )}
+
+      <AiPanel
+        summary={displaySummary}
+        frozenSummary={frozenSummary}
+        result={calculationResult}
+        globalScenario={globalScenario}
+        gastosOperativosPct={gastosOperativosPct}
+        selectedDun={selectedDun}
+        displayMillions={displayMillions}
+      />
 
       <ProductScenarioPanel
         product={selectedCalculatedProduct}
