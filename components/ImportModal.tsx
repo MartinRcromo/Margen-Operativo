@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { parseCSV } from '../utils/csvParser';
 import { toNum, normalizeDriver, cloneDeep } from '../utils/helpers';
-import { importarPeriodoCompleto } from '../services/dataService';
+import { importarPeriodoCompleto, getPeriodoByKey, eliminarDatosDePeriodo } from '../services/dataService';
 import { Periodo, Product, Gasto, Fijo } from '../types';
 
 interface ImportModalProps {
@@ -22,7 +22,8 @@ const pick = (obj: any, key: string) => {
 };
 
 const STEP_PERIODO = 1;
-const STEP_ARCHIVOS = 2;
+const STEP_CONFIRMAR = 2;
+const STEP_ARCHIVOS = 3;
 
 const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const [step, setStep] = useState(STEP_PERIODO);
@@ -33,6 +34,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
     const [gasFile, setGasFile] = useState<File | null>(null);
     const [fixFile, setFixFile] = useState<File | null>(null);
     const [dunFile, setDunFile] = useState<File | null>(null);
+    const [existingPeriodo, setExistingPeriodo] = useState<Periodo | null>(null);
     const [preview, setPreview] = useState<Preview | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -50,18 +52,28 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
         setGasFile(null);
         setFixFile(null);
         setDunFile(null);
+        setExistingPeriodo(null);
         setPreview(null);
         setError('');
         onClose();
     };
 
-    const handleNextStep = () => {
+    const handleNextStep = async () => {
         if (!nombre.trim()) { setError('Ingresá el nombre del periodo.'); return; }
         if (!fechaInicio) { setError('Ingresá la fecha de inicio.'); return; }
         if (!fechaFin) { setError('Ingresá la fecha de fin.'); return; }
         if (fechaFin < fechaInicio) { setError('La fecha de fin debe ser posterior al inicio.'); return; }
         setError('');
-        setStep(STEP_ARCHIVOS);
+        setLoading(true);
+        try {
+            const existing = await getPeriodoByKey(periodoKey);
+            setExistingPeriodo(existing);
+            setStep(existing ? STEP_CONFIRMAR : STEP_ARCHIVOS);
+        } catch (err: any) {
+            setError(`Error al verificar el periodo: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,6 +159,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                 })).filter(f => f.GastoFijo)
                 : [];
 
+                if (existingPeriodo) {
+                await eliminarDatosDePeriodo(existingPeriodo.id);
+            }
+
             const periodoData = { nombre: nombre.trim(), periodo_key: periodoKey, fecha_inicio: fechaInicio, fecha_fin: fechaFin };
             const periodo = await importarPeriodoCompleto(periodoData, productos, gastos, fijos);
 
@@ -197,7 +213,43 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                         {error && <div className="error-text" style={{ marginTop: '8px' }}>{error}</div>}
                         <div className="modal-actions">
                             <button className="btn" onClick={handleClose}>Cancelar</button>
-                            <button className="btn primary" onClick={handleNextStep}>Siguiente →</button>
+                            <button className="btn primary" onClick={handleNextStep} disabled={loading}>
+                                {loading ? 'Verificando...' : 'Siguiente →'}
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {step === STEP_CONFIRMAR && existingPeriodo && (
+                    <>
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px' }}>
+                            Paso 2 de 3 — Confirmación de reemplazo
+                        </p>
+                        <div style={{
+                            background: 'rgba(234,179,8,0.1)',
+                            border: '1px solid rgba(234,179,8,0.4)',
+                            borderRadius: '8px',
+                            padding: '1rem',
+                            marginBottom: '16px',
+                        }}>
+                            <p style={{ margin: '0 0 0.5rem', fontWeight: 700, color: '#ca8a04', fontSize: '14px' }}>
+                                ⚠ El periodo ya existe en la base de datos
+                            </p>
+                            <p style={{ margin: '0 0 0.5rem', fontSize: '13px', color: 'var(--text)' }}>
+                                Periodo: <strong>{existingPeriodo.nombre}</strong> ({existingPeriodo.periodo_key})
+                            </p>
+                            <p style={{ margin: '0 0 0.75rem', fontSize: '13px', color: 'var(--text)' }}>
+                                Fechas: {existingPeriodo.fecha_inicio} → {existingPeriodo.fecha_fin}
+                            </p>
+                            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)' }}>
+                                Si confirmás, se <strong>borrarán todos los datos del periodo</strong> (productos, gastos y fijos) y se cargarán los nuevos archivos.
+                            </p>
+                        </div>
+                        <div className="modal-actions">
+                            <button className="btn" onClick={handleClose}>Cancelar</button>
+                            <button className="btn primary" onClick={() => setStep(STEP_ARCHIVOS)}>
+                                Sí, reemplazar →
+                            </button>
                         </div>
                     </>
                 )}
@@ -205,7 +257,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                 {step === STEP_ARCHIVOS && (
                     <>
                         <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '13px' }}>
-                            Paso 2 de 2 — Periodo: <strong>{nombre}</strong> ({periodoKey}). Seleccioná los archivos CSV.
+                            {existingPeriodo ? 'Paso 3 de 3' : 'Paso 2 de 2'} — Periodo: <strong>{nombre}</strong> ({periodoKey}). Seleccioná los archivos CSV.
                         </p>
                         <div className="form-group" style={{ marginBottom: '16px' }}>
                             <label className="file-input-label" style={{ display: 'inline-flex', cursor: 'pointer' }}>
@@ -237,7 +289,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                         {error && <div className="error-text" style={{ marginTop: '8px' }}>{error}</div>}
 
                         <div className="modal-actions">
-                            <button className="btn" onClick={() => { setStep(STEP_PERIODO); setError(''); }}>← Volver</button>
+                            <button className="btn" onClick={() => { setStep(existingPeriodo ? STEP_CONFIRMAR : STEP_PERIODO); setError(''); }}>← Volver</button>
                             <button
                                 className="btn primary"
                                 onClick={handleImport}
