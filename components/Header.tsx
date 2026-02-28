@@ -13,6 +13,8 @@ interface HeaderProps {
     selectedPeriodoId: string;
     onPeriodoSelect: (id: string) => void;
     periodoRefresh: number;
+    onSignOut?: () => void;
+    userEmail?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -26,6 +28,8 @@ const Header: React.FC<HeaderProps> = ({
     selectedPeriodoId,
     onPeriodoSelect,
     periodoRefresh,
+    onSignOut,
+    userEmail,
 }) => {
     return (
         <div className="topbar">
@@ -74,6 +78,19 @@ const Header: React.FC<HeaderProps> = ({
 
                 <button onClick={onLoadSample} className="btn">Ejemplo</button>
                 <button onClick={onThemeChange} className="btn primary">Modo Claro/Oscuro</button>
+
+                {onSignOut && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid var(--border)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                        {userEmail && (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {userEmail}
+                            </span>
+                        )}
+                        <button onClick={onSignOut} className="btn" style={{ fontSize: '0.82rem', padding: '0.3rem 0.7rem' }}>
+                            Salir
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

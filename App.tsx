@@ -1,11 +1,14 @@
 
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Session } from '@supabase/supabase-js';
 import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario, Periodo } from './types';
 import { parseCSV } from './utils/csvParser';
 import { cloneDeep, toNum, normalizeDriver } from './utils/helpers';
 import { getProductosByPeriodo, getGastosByPeriodo, getFijosByPeriodo } from './services/dataService';
+import { supabase, supabaseReady } from './lib/supabase';
 import Header from './components/Header';
+import LoginPage from './components/LoginPage';
 import KpiDashboard from './components/KpiDashboard';
 import GlobalScenarios from './components/GlobalScenarios';
 import ProductTable from './components/ProductTable';
@@ -49,8 +52,18 @@ const App: React.FC = () => {
   const [selectedPeriodoId, setSelectedPeriodoId] = useState('');
   const [periodoRefresh, setPeriodoRefresh] = useState(0);
 
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
+  // Auth session
+  useEffect(() => {
+    if (!supabaseReady) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+
   // Theme Toggle
   useEffect(() => {
     const theme = localStorage.getItem('theme') || 'dark';
@@ -530,6 +543,16 @@ const App: React.FC = () => {
     }
   }, [loadDataFromState]);
 
+  // Auth guards (only when Supabase is configured)
+  if (supabaseReady && session === undefined) {
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--muted)' }}>Verificando sesión...</div>;
+  }
+  if (supabaseReady && session === null) {
+    return <LoginPage />;
+  }
+
+  const handleSignOut = supabaseReady ? () => supabase.auth.signOut() : undefined;
+
   return (
     <div className="wrap">
       <Header
@@ -543,6 +566,8 @@ const App: React.FC = () => {
         selectedPeriodoId={selectedPeriodoId}
         onPeriodoSelect={handlePeriodoSelect}
         periodoRefresh={periodoRefresh}
+        onSignOut={handleSignOut}
+        userEmail={session?.user?.email}
       />
       <Banner />
       
