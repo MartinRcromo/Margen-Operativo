@@ -1,4 +1,13 @@
 
+export interface Periodo {
+    id: string;
+    nombre: string;
+    periodo_key: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    created_at?: string;
+}
+
 export interface Product {
     Producto: string;
     DUN?: string;
