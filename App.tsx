@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Session } from '@supabase/supabase-js';
-import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario, Periodo } from './types';
+import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Summary, DunScenario, Periodo } from './types';
 import { parseCSV } from './utils/csvParser';
 import { cloneDeep, toNum, normalizeDriver } from './utils/helpers';
 import { getProductosByPeriodo, getGastosByPeriodo, getFijosByPeriodo } from './services/dataService';
@@ -15,6 +15,8 @@ import ProductTable from './components/ProductTable';
 import ProductScenarioPanel from './components/ProductScenarioPanel';
 import Banner from './components/Banner';
 import BiRecommendations from './components/BiRecommendations';
+import DunDashboard from './components/DunDashboard';
+import ObjetivoPanel from './components/ObjetivoPanel';
 import AddProductModal from './components/AddProductModal';
 import DeleteProductModal from './components/DeleteProductModal';
 import DunFilterBar from './components/DunFilterBar';
@@ -51,6 +53,8 @@ const App: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedPeriodoId, setSelectedPeriodoId] = useState('');
   const [periodoRefresh, setPeriodoRefresh] = useState(0);
+
+  const [frozenSummary, setFrozenSummary] = useState<Summary | null>(null);
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
@@ -169,6 +173,9 @@ const App: React.FC = () => {
     }
   };
   
+  // Clear frozen comparison when base data changes (new CSV or periodo)
+  useEffect(() => { setFrozenSummary(null); }, [products, gastos, fijos]);
+
   const calculationResult: CalculationResult | null = useMemo(() => {
     if (products.length === 0) return null;
     
@@ -580,10 +587,13 @@ const App: React.FC = () => {
       />
 
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <KpiDashboard 
-          summary={displaySummary} 
+        <KpiDashboard
+          summary={displaySummary}
           selectedDun={selectedDun}
-          displayMillions={displayMillions} 
+          displayMillions={displayMillions}
+          frozenSummary={frozenSummary}
+          onFreezeBase={() => setFrozenSummary(displaySummary)}
+          onClearFreeze={() => setFrozenSummary(null)}
         />
         <GlobalScenarios
             gastos={gastos}
@@ -603,6 +613,26 @@ const App: React.FC = () => {
         />
         <BiRecommendations result={biResult} selectedDun={selectedDun} />
       </div>
+
+      {selectedDun && biResult && (
+        <DunDashboard
+          result={biResult}
+          selectedDun={selectedDun}
+          displayMillions={displayMillions}
+        />
+      )}
+
+      {calculationResult && (
+        <ObjetivoPanel
+          summary={displaySummary}
+          selectedDun={selectedDun}
+          displayMillions={displayMillions}
+          onApplyPrecio={(pct) => setGlobalScenario(prev => ({ ...prev, ventaPct: pct }))}
+          onApplyVolumen={(pct) => setGlobalScenario(prev => ({ ...prev, bultosPct: pct }))}
+          onApplyCmv={(pct) => setGlobalScenario(prev => ({ ...prev, costoPct: -pct }))}
+          onApplyGastos={(pct) => setGastosOperativosPct(-pct)}
+        />
+      )}
 
       <ProductScenarioPanel
         product={selectedCalculatedProduct}
