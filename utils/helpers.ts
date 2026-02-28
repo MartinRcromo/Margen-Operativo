@@ -1,4 +1,31 @@
 
+export function toNum(v: any): number {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === 'number') return v;
+    let s = String(v).trim();
+    if (!s) return 0;
+    s = s.replace(/\s/g, '');
+    const hasComma = s.includes(',');
+    const hasDot = s.includes('.');
+    if (hasComma && hasDot) s = s.replace(/\./g, '').replace(',', '.');
+    else if (hasComma && !hasDot) s = s.replace(',', '.');
+    else s = s.replace(/,/g, '');
+    const n = Number(s);
+    return isNaN(n) ? 0 : n;
+}
+
+export function normalizeDriver(d: string): string {
+    const k = String(d || '').trim().toUpperCase();
+    if (!k) return '';
+    if (k === 'VOL VENTA' || k === 'VOLUMEN VENTA') return 'VOLVENTA';
+    if (k === 'VOL STOCK' || k === 'VOLUMEN STOCK') return 'VOLSTOCK';
+    if (k === 'STOCK VAL' || k === 'STOCKVALORIZADO' || k === 'STOCK VALORIZADO') return 'STOCKVAL';
+    if (k === 'VENTAS') return 'VENTA';
+    if (k === 'GANANCIA' || k === 'IIGG' || k === 'RESULT') return 'RESULTADO';
+    if (k === 'BULTO' || k === 'BULTOS') return 'BULTOS';
+    return k;
+}
+
 // A simple deep clone function for plain objects and arrays
 export function cloneDeep<T>(obj: T): T {
     if (obj === null || typeof obj !== 'object') {

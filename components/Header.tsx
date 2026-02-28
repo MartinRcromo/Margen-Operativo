@@ -1,4 +1,6 @@
 import React, { RefObject } from 'react';
+import { supabaseReady } from '../lib/supabase';
+import PeriodoSelector from './PeriodoSelector';
 
 interface HeaderProps {
     displayMillions: boolean;
@@ -7,6 +9,10 @@ interface HeaderProps {
     onLoadSample: () => void;
     onThemeChange: () => void;
     fileInputRef: RefObject<HTMLInputElement>;
+    onImportClick: () => void;
+    selectedPeriodoId: string;
+    onPeriodoSelect: (id: string) => void;
+    periodoRefresh: number;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -15,7 +21,11 @@ const Header: React.FC<HeaderProps> = ({
     onFileChange,
     onLoadSample,
     onThemeChange,
-    fileInputRef
+    fileInputRef,
+    onImportClick,
+    selectedPeriodoId,
+    onPeriodoSelect,
+    periodoRefresh,
 }) => {
     return (
         <div className="topbar">
@@ -25,6 +35,14 @@ const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="actions">
+                {supabaseReady && (
+                    <PeriodoSelector
+                        selectedPeriodoId={selectedPeriodoId}
+                        onSelect={onPeriodoSelect}
+                        onRefresh={periodoRefresh}
+                    />
+                )}
+
                 <label className="pill" style={{ cursor: 'pointer' }}>
                     <input
                         type="checkbox"
@@ -34,6 +52,13 @@ const Header: React.FC<HeaderProps> = ({
                     />
                     Ver en millones
                 </label>
+
+                {supabaseReady && (
+                    <button onClick={onImportClick} className="btn primary">
+                        + Importar CSV
+                    </button>
+                )}
+
                 <label className="file-input-label">
                     <span className="pill"><span className="dot"></span>CSV</span>
                     Cargar Archivos
@@ -46,6 +71,7 @@ const Header: React.FC<HeaderProps> = ({
                         style={{ display: 'none' }}
                     />
                 </label>
+
                 <button onClick={onLoadSample} className="btn">Ejemplo</button>
                 <button onClick={onThemeChange} className="btn primary">Modo Claro/Oscuro</button>
             </div>

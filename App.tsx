@@ -1,9 +1,10 @@
 
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario } from './types';
+import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario, Periodo } from './types';
 import { parseCSV } from './utils/csvParser';
-import { cloneDeep } from './utils/helpers';
+import { cloneDeep, toNum, normalizeDriver } from './utils/helpers';
+import { getProductosByPeriodo, getGastosByPeriodo, getFijosByPeriodo } from './services/dataService';
 import Header from './components/Header';
 import KpiDashboard from './components/KpiDashboard';
 import GlobalScenarios from './components/GlobalScenarios';
@@ -14,35 +15,10 @@ import BiRecommendations from './components/BiRecommendations';
 import AddProductModal from './components/AddProductModal';
 import DeleteProductModal from './components/DeleteProductModal';
 import DunFilterBar from './components/DunFilterBar';
+import ImportModal from './components/ImportModal';
 
 const DRIVER_KEYS = new Set(["VENTA", "RESULTADO", "VOLVENTA", "VOLSTOCK", "STOCKVAL", "BULTOS"]);
 
-const toNum = (v: any): number => {
-  if (v === null || v === undefined) return 0;
-  if (typeof v === "number") return v;
-  let s = String(v).trim();
-  if (!s) return 0;
-  s = s.replace(/\s/g, "");
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
-  if (hasComma && hasDot) s = s.replace(/\./g, "").replace(",", ".");
-  else if (hasComma && !hasDot) s = s.replace(",", ".");
-  else s = s.replace(/,/g, "");
-  const n = Number(s);
-  return isNaN(n) ? 0 : n;
-};
-
-const normalizeDriver = (d: string) => {
-  const k = String(d || "").trim().toUpperCase();
-  if (!k) return "";
-  if (k === "VOL VENTA" || k === "VOLUMEN VENTA") return "VOLVENTA";
-  if (k === "VOL STOCK" || k === "VOLUMEN STOCK") return "VOLSTOCK";
-  if (k === "STOCK VAL" || k === "STOCKVALORIZADO" || k === "STOCK VALORIZADO") return "STOCKVAL";
-  if (k === "VENTAS") return "VENTA";
-  if (k === "GANANCIA" || k === "IIGG" || k === "RESULT") return "RESULTADO";
-  if (k === "BULTO" || k === "BULTOS") return "BULTOS";
-  return k;
-};
 
 
 const App: React.FC = () => {
@@ -69,6 +45,9 @@ const App: React.FC = () => {
   const [status, setStatus] = useState({ text: 'Esperando datos', kind: 'neutral' });
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedPeriodoId, setSelectedPeriodoId] = useState('');
+  const [periodoRefresh, setPeriodoRefresh] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -513,6 +492,44 @@ const App: React.FC = () => {
     return calculationResult.allProds.find(p => p.Producto === selectedProduct.Producto) || null;
   }, [selectedProduct, calculationResult]);
 
+  const loadDataFromState = useCallback((prods: Product[], gas: Gasto[], fij: Fijo[]) => {
+    const prodsWithOriginal = prods.map(p => ({ ...p, _original: p._original ?? cloneDeep(p) }));
+    setInitialProducts(cloneDeep(prodsWithOriginal));
+    setInitialGastos(cloneDeep(gas));
+    setInitialFijos(cloneDeep(fij));
+    setProducts(cloneDeep(prodsWithOriginal));
+    setGastos(cloneDeep(gas));
+    setFijos(cloneDeep(fij));
+    setGlobalScenario({ ventaPct: 0, costoPct: 0, volVentaPct: 0, volStockPct: 0, stockValPct: 0, bultosPct: 0 });
+    setScenarioByProduct({});
+    setIndividualGastosScenarios({ operativos: {}, fijos: {} });
+    setDunScenarios({});
+    setSelectedProduct(null);
+    setSearchTerm('');
+    setSelectedDun('');
+  }, []);
+
+  const handleImportSuccess = useCallback((periodo: Periodo, prods: Product[], gas: Gasto[], fij: Fijo[]) => {
+    setSelectedPeriodoId(periodo.id);
+    setPeriodoRefresh(n => n + 1);
+    loadDataFromState(prods, gas, fij);
+  }, [loadDataFromState]);
+
+  const handlePeriodoSelect = useCallback(async (periodoId: string) => {
+    setSelectedPeriodoId(periodoId);
+    if (!periodoId) return;
+    try {
+      const [prods, gas, fij] = await Promise.all([
+        getProductosByPeriodo(periodoId),
+        getGastosByPeriodo(periodoId),
+        getFijosByPeriodo(periodoId),
+      ]);
+      loadDataFromState(prods, gas, fij);
+    } catch (err: any) {
+      alert(`Error al cargar el periodo: ${err.message}`);
+    }
+  }, [loadDataFromState]);
+
   return (
     <div className="wrap">
       <Header
@@ -522,6 +539,10 @@ const App: React.FC = () => {
         onLoadSample={loadSampleData}
         onThemeChange={toggleTheme}
         fileInputRef={fileInputRef}
+        onImportClick={() => setIsImportModalOpen(true)}
+        selectedPeriodoId={selectedPeriodoId}
+        onPeriodoSelect={handlePeriodoSelect}
+        periodoRefresh={periodoRefresh}
       />
       <Banner />
       
@@ -600,6 +621,12 @@ const App: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onDeleteProduct={handleDeleteProduct}
         products={products}
+      />
+
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={handleImportSuccess}
       />
     </div>
   );
