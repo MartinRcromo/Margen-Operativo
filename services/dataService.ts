@@ -22,12 +22,34 @@ export async function insertPeriodo(periodo: Omit<Periodo, 'id' | 'created_at'>)
     return data as Periodo;
 }
 
+export async function getPeriodoByKey(periodoKey: string): Promise<Periodo | null> {
+    const { data, error } = await supabase
+        .from('periodos')
+        .select('*')
+        .eq('periodo_key', periodoKey)
+        .maybeSingle();
+    if (error) throw new Error(error.message);
+    return data as Periodo | null;
+}
+
 export async function deletePeriodo(id: string): Promise<void> {
     const { error } = await supabase
         .from('periodos')
         .delete()
         .eq('id', id);
     if (error) throw new Error(error.message);
+}
+
+export async function eliminarDatosDePeriodo(periodoId: string): Promise<void> {
+    const [r1, r2, r3] = await Promise.all([
+        supabase.from('productos').delete().eq('periodo_id', periodoId),
+        supabase.from('gastos').delete().eq('periodo_id', periodoId),
+        supabase.from('fijos').delete().eq('periodo_id', periodoId),
+    ]);
+    if (r1.error) throw new Error(r1.error.message);
+    if (r2.error) throw new Error(r2.error.message);
+    if (r3.error) throw new Error(r3.error.message);
+    await deletePeriodo(periodoId);
 }
 
 // ---------- PRODUCTOS ----------
