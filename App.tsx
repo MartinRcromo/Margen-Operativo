@@ -125,7 +125,7 @@ const App: React.FC = () => {
         const prodName = pick(r, "Producto");
         const p: Product = {
           Producto: prodName, 
-          DUN: dunMap[prodName.trim()],
+          DUN: pick(r, "DUN") || dunMap[prodName.trim()],
           Venta: pick(r, "Venta"), Costo: pick(r, "Costo"),
           VolVenta: pick(r, "VolVenta"), VolStock: pick(r, "VolStock"), StockVal: pick(r, "StockVal"), Bultos: pick(r, "Bultos"),
           Activo: true, _sim: false, _original: null
