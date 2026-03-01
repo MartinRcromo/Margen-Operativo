@@ -87,7 +87,7 @@ const GlobalScenarios: React.FC<GlobalScenariosProps> = (props) => {
                         max={50}
                     />
                 ))}
-                 <div onDoubleClick={() => props.hasData && setDetailView('operativos')} className={props.hasData ? "sliderRow-interactive" : ""} title={props.hasData ? "Doble clic para ver detalle" : ""}>
+                <div style={{ position: 'relative' }}>
                     <ScenarioSlider
                         label="Gastos Operativos %"
                         value={props.gastosOperativosPct}
@@ -96,8 +96,18 @@ const GlobalScenarios: React.FC<GlobalScenariosProps> = (props) => {
                         max={50}
                         variant="warn"
                     />
+                    {props.hasData && (
+                        <button
+                            className="btn"
+                            onClick={() => setDetailView('operativos')}
+                            style={{ position: 'absolute', top: '8px', right: '8px', padding: '2px 8px', fontSize: '10px' }}
+                            title="Ver detalle por gasto"
+                        >
+                            Detalle ›
+                        </button>
+                    )}
                 </div>
-                 <div onDoubleClick={() => props.hasData && setDetailView('fijos')} className={props.hasData ? "sliderRow-interactive" : ""} title={props.hasData ? "Doble clic para ver detalle" : ""}>
+                <div style={{ position: 'relative' }}>
                     <ScenarioSlider
                         label="Gastos Fijos %"
                         value={props.gastosFijosPct}
@@ -106,14 +116,24 @@ const GlobalScenarios: React.FC<GlobalScenariosProps> = (props) => {
                         max={50}
                         variant="warn"
                     />
+                    {props.hasData && (
+                        <button
+                            className="btn"
+                            onClick={() => setDetailView('fijos')}
+                            style={{ position: 'absolute', top: '8px', right: '8px', padding: '2px 8px', fontSize: '10px' }}
+                            title="Ver detalle por gasto fijo"
+                        >
+                            Detalle ›
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="row" style={{ marginTop: '16px' }}>
                 <div className="left">
-                    <span className="pill warn"><span className="dot"></span>Impacto global en todas las líneas activas</span>
+                    <span className="pill info"><span className="dot"></span>Impacto global en todas las líneas activas</span>
                 </div>
                 <div className="left">
-                    <button onClick={resetGlobalScenarios} disabled={!props.hasData} className="btn">Resetear Global</button>
+                    <button onClick={resetGlobalScenarios} disabled={!props.hasData} className="btn">Resetear</button>
                 </div>
             </div>
         </>
@@ -176,10 +196,10 @@ const GlobalScenarios: React.FC<GlobalScenariosProps> = (props) => {
                 </div>
                 <div className="row" style={{ marginTop: '16px' }}>
                     <div className="left">
-                        <span className="pill warn"><span className="dot"></span>Impacto solo en líneas del DUN seleccionado</span>
+                        <span className="pill info"><span className="dot"></span>Impacto solo en líneas de este rubro</span>
                     </div>
                     <div className="left">
-                        <button onClick={resetDunScenario} disabled={!props.hasData} className="btn">Resetear DUN</button>
+                        <button onClick={resetDunScenario} disabled={!props.hasData} className="btn">Resetear</button>
                     </div>
                 </div>
             </>

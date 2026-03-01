@@ -9,18 +9,18 @@ import { getProductosByPeriodo, getGastosByPeriodo, getFijosByPeriodo } from './
 import { supabase, supabaseReady } from './lib/supabase';
 import Header from './components/Header';
 import LoginPage from './components/LoginPage';
+import KpiBar from './components/KpiBar';
 import KpiDashboard from './components/KpiDashboard';
 import GlobalScenarios from './components/GlobalScenarios';
 import ProductTable from './components/ProductTable';
 import ProductScenarioPanel from './components/ProductScenarioPanel';
-import Banner from './components/Banner';
 import BiRecommendations from './components/BiRecommendations';
 import DunDashboard from './components/DunDashboard';
+import DunCards from './components/DunCards';
 import ObjetivoPanel from './components/ObjetivoPanel';
 import AiPanel from './components/AiPanel';
 import AddProductModal from './components/AddProductModal';
 import DeleteProductModal from './components/DeleteProductModal';
-import DunFilterBar from './components/DunFilterBar';
 import ImportModal from './components/ImportModal';
 
 const DRIVER_KEYS = new Set(["VENTA", "RESULTADO", "VOLVENTA", "VOLSTOCK", "STOCKVAL", "BULTOS"]);
@@ -56,6 +56,7 @@ const App: React.FC = () => {
   const [periodoRefresh, setPeriodoRefresh] = useState(0);
 
   const [frozenSummary, setFrozenSummary] = useState<Summary | null>(null);
+  const [activeSection, setActiveSection] = useState<'resumen' | 'dun' | 'escenarios' | 'lineas'>('resumen');
 
   const [session, setSession] = useState<Session | null | undefined>(undefined);
 
@@ -561,6 +562,209 @@ const App: React.FC = () => {
 
   const handleSignOut = supabaseReady ? () => supabase.auth.signOut() : undefined;
 
+  const hasData = products.length > 0;
+  const allProds = calculationResult?.allProds || [];
+
+  // ── Section: Resumen ──────────────────────────────────────────────────────
+  const renderResumen = () => (
+    <div className="section-content">
+      {!calculationResult ? (
+        <div className="section-empty">
+          <strong>Sin datos cargados</strong>
+          <span>Importá un periodo o cargá los archivos CSV para comenzar.</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <KpiDashboard
+              summary={calculationResult.summary}
+              selectedDun=""
+              displayMillions={displayMillions}
+              frozenSummary={frozenSummary}
+              onFreezeBase={() => setFrozenSummary(calculationResult.summary)}
+              onClearFreeze={() => setFrozenSummary(null)}
+            />
+            <BiRecommendations result={calculationResult} selectedDun="" />
+          </div>
+          <AiPanel
+            summary={calculationResult.summary}
+            frozenSummary={frozenSummary}
+            result={calculationResult}
+            globalScenario={globalScenario}
+            gastosOperativosPct={gastosOperativosPct}
+            selectedDun=""
+            displayMillions={displayMillions}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  // ── Section: Por DUN ─────────────────────────────────────────────────────
+  const renderDun = () => (
+    <div className="section-content">
+      {!hasData ? (
+        <div className="section-empty">
+          <strong>Sin datos cargados</strong>
+          <span>Cargá un periodo para ver el análisis por rubro (DUN).</span>
+        </div>
+      ) : (
+        <>
+          <DunCards
+            products={allProds}
+            selectedDun={selectedDun}
+            onSelect={setSelectedDun}
+          />
+          {!selectedDun ? (
+            <div className="section-empty">
+              <strong>Seleccioná un rubro</strong>
+              <span>Hacé clic en cualquiera de los cards de arriba para ver el análisis detallado.</span>
+            </div>
+          ) : (
+            <>
+              <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <KpiDashboard
+                  summary={displaySummary}
+                  selectedDun={selectedDun}
+                  displayMillions={displayMillions}
+                  frozenSummary={frozenSummary}
+                  onFreezeBase={() => setFrozenSummary(displaySummary)}
+                  onClearFreeze={() => setFrozenSummary(null)}
+                />
+                <GlobalScenarios
+                  gastos={gastos}
+                  fijos={fijos}
+                  scenario={globalScenario}
+                  onScenarioChange={setGlobalScenario}
+                  gastosOperativosPct={gastosOperativosPct}
+                  onGastosOperativosPctChange={setGastosOperativosPct}
+                  gastosFijosPct={gastosFijosPct}
+                  onGastosFijosPctChange={setGastosFijosPct}
+                  individualGastosScenarios={individualGastosScenarios}
+                  onIndividualGastosScenariosChange={setIndividualGastosScenarios}
+                  hasData={hasData}
+                  selectedDun={selectedDun}
+                  dunScenarios={dunScenarios}
+                  onDunScenariosChange={setDunScenarios}
+                />
+              </div>
+              <DunDashboard
+                result={biResult}
+                selectedDun={selectedDun}
+                displayMillions={displayMillions}
+              />
+              <ProductTable
+                products={allProds}
+                gastos={calculationResult?.gastos || []}
+                totals={calculationResult?.totals}
+                sort={sort}
+                setSort={setSort}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                selectedDun={selectedDun}
+                setSelectedDun={setSelectedDun}
+                status={status}
+                onUpdateField={handleUpdateProductField}
+                onRevertField={handleRevertProductField}
+                onSelectProduct={handleSelectProduct}
+                onAddProductClick={() => setIsAddModalOpen(true)}
+                onDeleteProductClick={() => setIsDeleteModalOpen(true)}
+                onUndoAllChanges={handleUndoAllChanges}
+                displayMillions={displayMillions}
+                hasData={hasData}
+              />
+              <BiRecommendations result={biResult} selectedDun={selectedDun} />
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  // ── Section: Escenarios ──────────────────────────────────────────────────
+  const renderEscenarios = () => (
+    <div className="section-content">
+      {!hasData ? (
+        <div className="section-empty">
+          <strong>Sin datos cargados</strong>
+          <span>Cargá un periodo para simular escenarios.</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <GlobalScenarios
+              gastos={gastos}
+              fijos={fijos}
+              scenario={globalScenario}
+              onScenarioChange={setGlobalScenario}
+              gastosOperativosPct={gastosOperativosPct}
+              onGastosOperativosPctChange={setGastosOperativosPct}
+              gastosFijosPct={gastosFijosPct}
+              onGastosFijosPctChange={setGastosFijosPct}
+              individualGastosScenarios={individualGastosScenarios}
+              onIndividualGastosScenariosChange={setIndividualGastosScenarios}
+              hasData={hasData}
+              selectedDun=""
+              dunScenarios={dunScenarios}
+              onDunScenariosChange={setDunScenarios}
+            />
+            <KpiDashboard
+              summary={calculationResult?.summary ?? null}
+              selectedDun=""
+              displayMillions={displayMillions}
+              frozenSummary={frozenSummary}
+              onFreezeBase={() => setFrozenSummary(calculationResult?.summary ?? null)}
+              onClearFreeze={() => setFrozenSummary(null)}
+            />
+          </div>
+          <ObjetivoPanel
+            summary={calculationResult?.summary ?? null}
+            selectedDun=""
+            displayMillions={displayMillions}
+            onApplyPrecio={(pct) => setGlobalScenario(prev => ({ ...prev, ventaPct: pct }))}
+            onApplyVolumen={(pct) => setGlobalScenario(prev => ({ ...prev, bultosPct: pct }))}
+            onApplyCmv={(pct) => setGlobalScenario(prev => ({ ...prev, costoPct: -pct }))}
+            onApplyGastos={(pct) => setGastosOperativosPct(-pct)}
+          />
+        </>
+      )}
+    </div>
+  );
+
+  // ── Section: Por Línea ───────────────────────────────────────────────────
+  const renderLineas = () => (
+    <div className="section-content">
+      <ProductScenarioPanel
+        product={selectedCalculatedProduct}
+        scenario={selectedProduct ? scenarioByProduct[selectedProduct.Producto] : undefined}
+        onScenarioChange={handleUpdateProductScenario}
+        onClose={() => setSelectedProduct(null)}
+        displayMillions={displayMillions}
+        selectedDun=""
+      />
+      <ProductTable
+        products={allProds}
+        gastos={calculationResult?.gastos || []}
+        totals={calculationResult?.totals}
+        sort={sort}
+        setSort={setSort}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedDun=""
+        setSelectedDun={setSelectedDun}
+        status={status}
+        onUpdateField={handleUpdateProductField}
+        onRevertField={handleRevertProductField}
+        onSelectProduct={handleSelectProduct}
+        onAddProductClick={() => setIsAddModalOpen(true)}
+        onDeleteProductClick={() => setIsDeleteModalOpen(true)}
+        onUndoAllChanges={handleUndoAllChanges}
+        displayMillions={displayMillions}
+        hasData={hasData}
+      />
+    </div>
+  );
+
   return (
     <div className="wrap">
       <Header
@@ -577,103 +781,40 @@ const App: React.FC = () => {
         onSignOut={handleSignOut}
         userEmail={session?.user?.email}
       />
-      <Banner />
-      
-      <DunFilterBar
-        selectedDun={selectedDun}
-        setSelectedDun={setSelectedDun}
-        products={calculationResult?.allProds || []}
-        displayMillions={displayMillions}
-        hasData={products.length > 0}
-      />
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-        <KpiDashboard
-          summary={displaySummary}
-          selectedDun={selectedDun}
-          displayMillions={displayMillions}
-          frozenSummary={frozenSummary}
-          onFreezeBase={() => setFrozenSummary(displaySummary)}
-          onClearFreeze={() => setFrozenSummary(null)}
-        />
-        <GlobalScenarios
-            gastos={gastos}
-            fijos={fijos}
-            scenario={globalScenario}
-            onScenarioChange={setGlobalScenario}
-            gastosOperativosPct={gastosOperativosPct}
-            onGastosOperativosPctChange={setGastosOperativosPct}
-            gastosFijosPct={gastosFijosPct}
-            onGastosFijosPctChange={setGastosFijosPct}
-            individualGastosScenarios={individualGastosScenarios}
-            onIndividualGastosScenariosChange={setIndividualGastosScenarios}
-            hasData={products.length > 0}
-            selectedDun={selectedDun}
-            dunScenarios={dunScenarios}
-            onDunScenariosChange={setDunScenarios}
-        />
-        <BiRecommendations result={biResult} selectedDun={selectedDun} />
+      <KpiBar summary={calculationResult?.summary ?? null} displayMillions={displayMillions} />
+
+      <div className="section-nav">
+        <button
+          className={`section-tab${activeSection === 'resumen' ? ' active' : ''}`}
+          onClick={() => setActiveSection('resumen')}
+        >
+          Resumen
+        </button>
+        <button
+          className={`section-tab accent-tab${activeSection === 'dun' ? ' active' : ''}`}
+          onClick={() => setActiveSection('dun')}
+        >
+          Por Rubro (DUN)
+        </button>
+        <button
+          className={`section-tab${activeSection === 'escenarios' ? ' active' : ''}`}
+          onClick={() => setActiveSection('escenarios')}
+        >
+          Escenarios
+        </button>
+        <button
+          className={`section-tab${activeSection === 'lineas' ? ' active' : ''}`}
+          onClick={() => setActiveSection('lineas')}
+        >
+          Por Línea
+        </button>
       </div>
 
-      {selectedDun && biResult && (
-        <DunDashboard
-          result={biResult}
-          selectedDun={selectedDun}
-          displayMillions={displayMillions}
-        />
-      )}
-
-      {calculationResult && (
-        <ObjetivoPanel
-          summary={displaySummary}
-          selectedDun={selectedDun}
-          displayMillions={displayMillions}
-          onApplyPrecio={(pct) => setGlobalScenario(prev => ({ ...prev, ventaPct: pct }))}
-          onApplyVolumen={(pct) => setGlobalScenario(prev => ({ ...prev, bultosPct: pct }))}
-          onApplyCmv={(pct) => setGlobalScenario(prev => ({ ...prev, costoPct: -pct }))}
-          onApplyGastos={(pct) => setGastosOperativosPct(-pct)}
-        />
-      )}
-
-      <AiPanel
-        summary={displaySummary}
-        frozenSummary={frozenSummary}
-        result={calculationResult}
-        globalScenario={globalScenario}
-        gastosOperativosPct={gastosOperativosPct}
-        selectedDun={selectedDun}
-        displayMillions={displayMillions}
-      />
-
-      <ProductScenarioPanel
-        product={selectedCalculatedProduct}
-        scenario={selectedProduct ? scenarioByProduct[selectedProduct.Producto] : undefined}
-        onScenarioChange={handleUpdateProductScenario}
-        onClose={() => setSelectedProduct(null)}
-        displayMillions={displayMillions}
-        selectedDun={selectedDun}
-      />
-      
-      <ProductTable
-        products={calculationResult?.allProds || []}
-        gastos={calculationResult?.gastos || []}
-        totals={calculationResult?.totals}
-        sort={sort}
-        setSort={setSort}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        selectedDun={selectedDun}
-        setSelectedDun={setSelectedDun}
-        status={status}
-        onUpdateField={handleUpdateProductField}
-        onRevertField={handleRevertProductField}
-        onSelectProduct={handleSelectProduct}
-        onAddProductClick={() => setIsAddModalOpen(true)}
-        onDeleteProductClick={() => setIsDeleteModalOpen(true)}
-        onUndoAllChanges={handleUndoAllChanges}
-        displayMillions={displayMillions}
-        hasData={products.length > 0}
-      />
+      {activeSection === 'resumen'    && renderResumen()}
+      {activeSection === 'dun'        && renderDun()}
+      {activeSection === 'escenarios' && renderEscenarios()}
+      {activeSection === 'lineas'     && renderLineas()}
 
       <AddProductModal
         isOpen={isAddModalOpen}
@@ -681,7 +822,7 @@ const App: React.FC = () => {
         onAddProduct={handleAddProduct}
         existingProductNames={products.map(p => p.Producto.trim().toLowerCase())}
       />
-      
+
       <DeleteProductModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

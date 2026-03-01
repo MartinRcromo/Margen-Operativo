@@ -23,6 +23,12 @@
       --bad:#fb7185;
       --shadow: 0 18px 45px rgba(0,0,0,.45);
       --radius: 16px;
+      /* Aliases para compatibilidad de componentes */
+      --border: var(--stroke);
+      --card: rgba(255,255,255,.06);
+      --text-muted: var(--muted);
+      --text-dim: var(--muted2);
+      --bg-card: rgba(255,255,255,.04);
     }
     [data-theme="light"]{
       --bg:#f6f7fb;
@@ -35,6 +41,8 @@
       --warn:#d97706;
       --bad:#e11d48;
       --shadow: 0 18px 45px rgba(0,0,0,.08);
+      --card: rgba(255,255,255,.90);
+      --bg-card: rgba(17,24,39,.04);
     }
     *{ box-sizing:border-box; }
     body{
@@ -716,6 +724,188 @@
       line-height: 1.6;
       color: var(--muted);
     }
+
+    /* ── Accessibility ───────────────────────────────────── */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    /* ── KPI Bar (persistent top strip) ─────────────────── */
+    .kpi-bar {
+      display: flex;
+      gap: 1px;
+      margin-top: 14px;
+      background: var(--stroke);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .kpi-bar-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 12px 20px;
+      flex: 1;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      transition: background .15s;
+      min-width: 0;
+    }
+    .kpi-bar-item:hover { background: rgba(255,255,255,.09); }
+    .kpi-bar-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      white-space: nowrap;
+    }
+    .kpi-bar-value {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .kpi-bar-value.positive { color: var(--good); }
+    .kpi-bar-value.negative { color: var(--bad); }
+    .kpi-bar-sub {
+      font-size: 10px;
+      color: var(--muted2);
+      white-space: nowrap;
+    }
+    @media (max-width: 900px) {
+      .kpi-bar { flex-wrap: wrap; gap: 0; }
+      .kpi-bar-item { flex: 1 1 45%; }
+    }
+
+    /* ── Section Navigation ──────────────────────────────── */
+    .section-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 14px;
+      padding: 4px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border: 1px solid var(--stroke);
+      border-radius: 999px;
+      width: fit-content;
+    }
+    .section-tab {
+      padding: 9px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      transition: .15s ease;
+      white-space: nowrap;
+    }
+    .section-tab:hover { color: var(--text); background: rgba(255,255,255,.06); }
+    .section-tab.active {
+      color: var(--text);
+      border-color: rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+    }
+    .section-tab.accent-tab { color: var(--accent); }
+    .section-tab.accent-tab.active {
+      border-color: rgba(110,231,255,.35);
+      background: rgba(110,231,255,.08);
+      color: var(--accent);
+    }
+    [data-theme="light"] .section-tab.accent-tab { color: var(--accent); }
+
+    /* ── DUN Cards selector ──────────────────────────────── */
+    .dun-cards {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .dun-card {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      border: 1px solid var(--stroke);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all .15s ease;
+      min-width: 110px;
+      box-shadow: var(--shadow);
+      user-select: none;
+    }
+    .dun-card:hover { background: rgba(255,255,255,.09); transform: translateY(-1px); }
+    .dun-card.active {
+      border-color: rgba(110,231,255,.40);
+      background: rgba(110,231,255,.07);
+      transform: none;
+    }
+    .dun-card-name {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .dun-card-pct {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .dun-card-sublabel {
+      font-size: 10px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .dun-card-roi {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    /* ── Section layout helpers ──────────────────────────── */
+    .section-content { margin-top: 14px; }
+    .section-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+      gap: 12px;
+      color: var(--muted2);
+      font-size: 14px;
+      text-align: center;
+    }
+    .section-empty strong { color: var(--muted); font-size: 16px; }
+
+    /* ── Comparison mode active indicator ───────────────── */
+    .card.comparing {
+      border-color: rgba(110,231,255,.30);
+      background: linear-gradient(180deg, rgba(110,231,255,.04), rgba(255,255,255,.03));
+    }
+
+    /* ── Table header min font fix ───────────────────────── */
+    th { font-size: 11px; }
+
+    /* ── Pill neutral variant ────────────────────────────── */
+    .pill.info {
+      background: rgba(110,231,255,.08);
+      border-color: rgba(110,231,255,.20);
+      color: var(--accent);
+    }
+    .pill.info .dot { background: var(--accent); }
 
   </style>
 

@@ -90,18 +90,18 @@ const ProductTable: React.FC<ProductTableProps> = (props) => {
         <table>
             <thead>
                 <tr>
-                    <th onClick={() => handleSort('Activo')} className="sortable">Status {getSortIcon('Activo')}</th>
-                    <th onClick={() => handleSort('DUN')} className="sortable" style={{ textAlign: 'center' }}>DUN {getSortIcon('DUN')}</th>
+                    <th onClick={() => handleSort('Activo')} className="sortable">Estado {getSortIcon('Activo')}</th>
+                    <th onClick={() => handleSort('DUN')} className="sortable" style={{ textAlign: 'center' }}>Rubro {getSortIcon('DUN')}</th>
                     <th onClick={() => handleSort('Producto')} className="sortable" style={{ textAlign: 'center' }}>Producto {getSortIcon('Producto')}</th>
                     <th onClick={() => handleSort('StockVal')} className="sortable" style={{ textAlign: 'center' }}>Stock $ {getSortIcon('StockVal')}</th>
                     <th onClick={() => handleSort('Venta')} className="sortable" style={{ textAlign: 'center' }}>Venta {getSortIcon('Venta')}</th>
                     <th onClick={() => handleSort('Costo')} className="sortable" style={{ textAlign: 'center' }}>CMV {getSortIcon('Costo')}</th>
                     <th onClick={() => handleSort('MarkUp')} className="sortable" title="(Venta - CMV) / CMV" style={{ textAlign: 'center' }}>Mark-Up % {getSortIcon('MarkUp')}</th>
-                    <th onClick={() => handleSort('Resultado')} className="sortable" style={{ textAlign: 'center' }}>Margen Bruto. {getSortIcon('Resultado')}</th>
-                    <th onClick={() => handleSort('MargenOper')} className="sortable" style={{ textAlign: 'center' }}>Contrib. Marg. {getSortIcon('MargenOper')}</th>
-                    <th onClick={() => handleSort('MargenPct')} className="sortable" title="Margen Operativo / Venta" style={{ textAlign: 'center' }}>Contrib Marg. % {getSortIcon('MargenPct')}</th>
+                    <th onClick={() => handleSort('Resultado')} className="sortable" style={{ textAlign: 'center' }}>C. Marginal $ {getSortIcon('Resultado')}</th>
+                    <th onClick={() => handleSort('MargenOper')} className="sortable" style={{ textAlign: 'center' }}>Mg. Operativo {getSortIcon('MargenOper')}</th>
+                    <th onClick={() => handleSort('MargenPct')} className="sortable" title="Margen Operativo / Venta" style={{ textAlign: 'center' }}>Mg. Op. % {getSortIcon('MargenPct')}</th>
                     <th onClick={() => handleSort('ROI')} className="sortable" title="Margen Operativo / Stock Valorizado" style={{ textAlign: 'center' }}>ROI {getSortIcon('ROI')}</th>
-                    <th style={{ textAlign: 'center' }}>Acción</th>
+                    <th style={{ textAlign: 'center' }}>Detalle</th>
                 </tr>
             </thead>
             <tbody>
@@ -273,20 +273,25 @@ const ProductTable: React.FC<ProductTableProps> = (props) => {
                                 placeholder="Buscar por producto..."
                                 disabled={!props.hasData}
                             />
+                            {props.hasData && (
+                                <span style={{ fontSize: '11px', color: 'var(--muted2)', whiteSpace: 'nowrap' }}>
+                                    {filteredAndSortedProducts.length} de {props.products.length}
+                                </span>
+                            )}
                         </>
                      )}
                 </div>
-                <div className="left">
+                <div className="right" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                     {activeTab === 'perf' && (
                         <>
                             <button onClick={props.onAddProductClick} className="btn primary" disabled={!props.hasData}>
-                                 + Nueva Línea
+                                + Nueva Línea
                             </button>
                             <button onClick={props.onDeleteProductClick} className="btn danger" disabled={!props.hasData}>
-                                 Eliminar Línea
+                                Eliminar Línea
                             </button>
                             <button onClick={props.onUndoAllChanges} className="btn" disabled={!props.hasData}>
-                                Deshacer todos los cambios
+                                Deshacer cambios
                             </button>
                         </>
                     )}

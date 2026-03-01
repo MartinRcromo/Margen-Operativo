@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,15 +70,29 @@ const LoginPage: React.FC = () => {
             <label style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600, letterSpacing: '0.05em' }}>
               CONTRASEÑA
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              style={inputStyle}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                style={{ ...inputStyle, paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(s => !s)}
+                style={{
+                  position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer',
+                  fontSize: '0.85rem', padding: '2px',
+                }}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
 
           {error && (

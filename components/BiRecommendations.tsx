@@ -90,9 +90,9 @@ const BiRecommendations: React.FC<BiRecommendationsProps> = ({ result, selectedD
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', flex: 1, padding: '4px' }}>
                     {insights.length > 0 ? insights.map((insight, i) => (
                         <div key={i} className={`pnl-item total insight-card`}
-                             onDoubleClick={() => handleInsightClick(insight)}
-                             title="Doble clic para ver detalle"
-                             style={{ 
+                             onClick={() => handleInsightClick(insight)}
+                             title="Ver detalle"
+                             style={{
                                 flexDirection: 'column', 
                                 alignItems: 'flex-start',
                                 gap: '6px',
@@ -115,7 +115,7 @@ const BiRecommendations: React.FC<BiRecommendationsProps> = ({ result, selectedD
                     )}
                 </div>
                 <div className="footnote" style={{marginTop:'auto', paddingTop:'8px'}}>
-                    * Sugerencias automáticas basadas en la salud del margen y drivers {selectedDun ? 'para el DUN seleccionado' : 'consolidados'}.
+                    * Clic en cada punto para ver el análisis detallado y acciones recomendadas.
                 </div>
             </div>
             

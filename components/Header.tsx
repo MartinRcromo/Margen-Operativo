@@ -47,14 +47,14 @@ const Header: React.FC<HeaderProps> = ({
                     />
                 )}
 
-                <label className="pill" style={{ cursor: 'pointer' }}>
+                <label className="toggle" style={{ cursor: 'pointer', fontSize: '12px', color: 'var(--muted)' }}>
                     <input
                         type="checkbox"
                         checked={displayMillions}
                         onChange={(e) => onDisplayMillionsChange(e.target.checked)}
-                        style={{ marginRight: '6px' }}
+                        aria-label="Ver valores en millones"
                     />
-                    Ver en millones
+                    Ver en M$
                 </label>
 
                 {supabaseReady && (
@@ -77,10 +77,12 @@ const Header: React.FC<HeaderProps> = ({
                 </label>
 
                 <button onClick={onLoadSample} className="btn">Ejemplo</button>
-                <button onClick={onThemeChange} className="btn primary">Modo Claro/Oscuro</button>
+                <button onClick={onThemeChange} className="btn" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar tema">
+                    ☀ / ☾
+                </button>
 
                 {onSignOut && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid var(--border)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid var(--stroke)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
                         {userEmail && (
                             <span style={{ fontSize: '0.78rem', color: 'var(--muted)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {userEmail}

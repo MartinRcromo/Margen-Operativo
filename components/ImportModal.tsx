@@ -279,6 +279,9 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                             <FileStatus label="FIJOS.csv" file={fixFile} />
                             <FileStatus label="DUN.csv" file={dunFile} />
                         </div>
+                        <p style={{ fontSize: '11px', color: 'var(--muted)', margin: '0 0 16px' }}>
+                            Los archivos deben contener <strong>PRODUCTO</strong>, <strong>GASTO</strong>, <strong>FIJO</strong> o <strong>DUN</strong> en el nombre del archivo.
+                        </p>
 
                         {preview && (
                             <div style={{ background: 'var(--bg-card)', borderRadius: '8px', padding: '12px', fontSize: '13px', marginBottom: '16px' }}>
@@ -295,7 +298,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, onSuccess })
                                 onClick={handleImport}
                                 disabled={loading || !prodFile || !gasFile}
                             >
-                                {loading ? 'Importando...' : 'Importar a BD'}
+                                {loading ? 'Importando...' : 'Confirmar importación'}
                             </button>
                         </div>
                     </>
