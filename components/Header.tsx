@@ -1,6 +1,4 @@
 import React, { RefObject } from 'react';
-import { supabaseReady } from '../lib/supabase';
-import PeriodoSelector from './PeriodoSelector';
 
 interface HeaderProps {
     displayMillions: boolean;
@@ -9,12 +7,8 @@ interface HeaderProps {
     onLoadSample: () => void;
     onThemeChange: () => void;
     fileInputRef: RefObject<HTMLInputElement>;
-    onImportClick: () => void;
-    selectedPeriodoId: string;
-    onPeriodoSelect: (id: string) => void;
-    periodoRefresh: number;
-    onSignOut?: () => void;
-    userEmail?: string;
+    scenarioMode: 'REAL' | 'IDEAL';
+    onScenarioModeChange: (mode: 'REAL' | 'IDEAL') => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -24,75 +18,64 @@ const Header: React.FC<HeaderProps> = ({
     onLoadSample,
     onThemeChange,
     fileInputRef,
-    onImportClick,
-    selectedPeriodoId,
-    onPeriodoSelect,
-    periodoRefresh,
-    onSignOut,
-    userEmail,
+    scenarioMode,
+    onScenarioModeChange
 }) => {
     return (
-        <div className="topbar">
-            <div className="brand">
-                <h1>Margen Operativo por Línea — Motor de Drivers</h1>
-                <small>Analítica avanzada para la rentabilidad logística y de producto.</small>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Margen Operativo por Línea — Motor de Drivers</h1>
+                <p className="text-xs text-slate-400 font-medium">Analítica avanzada para la rentabilidad logística y de producto.</p>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 p-1 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                    <button 
+                        onClick={() => onScenarioModeChange('REAL')}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                            scenarioMode === 'REAL' 
+                            ? 'bg-slate-700 text-white shadow-lg' 
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
+                        Real
+                    </button>
+                    <button 
+                        onClick={() => onScenarioModeChange('IDEAL')}
+                        className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                            scenarioMode === 'IDEAL' 
+                            ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]' 
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                    >
+                        Ideal
+                    </button>
+                </div>
 
-            <div className="actions">
-                {supabaseReady && (
-                    <PeriodoSelector
-                        selectedPeriodoId={selectedPeriodoId}
-                        onSelect={onPeriodoSelect}
-                        onRefresh={periodoRefresh}
-                    />
-                )}
-
-                <label className="pill" style={{ cursor: 'pointer' }}>
+                <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-all text-xs font-medium">
                     <input
                         type="checkbox"
                         checked={displayMillions}
                         onChange={(e) => onDisplayMillionsChange(e.target.checked)}
-                        style={{ marginRight: '6px' }}
+                        className="form-checkbox h-3.5 w-3.5 text-accent-blue bg-slate-900 border-slate-700 rounded focus:ring-accent-blue"
                     />
-                    Ver en millones
+                    <span>Ver en millones</span>
                 </label>
-
-                {supabaseReady && (
-                    <button onClick={onImportClick} className="btn primary">
-                        + Importar CSV
-                    </button>
-                )}
-
-                <label className="file-input-label">
-                    <span className="pill"><span className="dot"></span>CSV</span>
-                    Cargar Archivos
+                <label className="btn-action cursor-pointer">
+                    <span className="opacity-60">CSV</span>
+                    <span>Cargar Archivos</span>
                     <input
                         ref={fileInputRef}
                         type="file"
                         accept=".csv"
                         multiple
                         onChange={onFileChange}
-                        style={{ display: 'none' }}
+                        className="hidden"
                     />
                 </label>
-
-                <button onClick={onLoadSample} className="btn">Ejemplo</button>
-                <button onClick={onThemeChange} className="btn primary">Modo Claro/Oscuro</button>
-
-                {onSignOut && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderLeft: '1px solid var(--border)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
-                        {userEmail && (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {userEmail}
-                            </span>
-                        )}
-                        <button onClick={onSignOut} className="btn" style={{ fontSize: '0.82rem', padding: '0.3rem 0.7rem' }}>
-                            Salir
-                        </button>
-                    </div>
-                )}
+                <button onClick={onLoadSample} className="btn-action">Ejemplo</button>
+                <button onClick={onThemeChange} className="btn-action">Modo Claro/Oscuro</button>
             </div>
-        </div>
+        </header>
     );
 };
 

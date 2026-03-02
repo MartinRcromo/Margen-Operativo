@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Product, Scenario } from '../types';
-import { fmtM } from '../utils/helpers';
+import { fmtM, fmtPrice, fmtRaw, toNum, getWorkingDaysPreviousMonth } from '../utils/helpers';
 import ScenarioSlider from './ScenarioSlider';
 
 interface ProductScenarioPanelProps {
@@ -14,17 +14,17 @@ interface ProductScenarioPanelProps {
 }
 
 const globalScenarioDefs = [
-    { key: "ventaPct", label: "Venta (Precio) %" },
+    { key: "ventaPct", label: "Precio Promedio %" },
     { key: "costoPct", label: "CMV %" },
     { key: "volVentaPct", label: "VolVenta %" },
     { key: "volStockPct", label: "VolStock %" },
     { key: "stockValPct", label: "StockVal %" },
-    { key: "bultosPct", label: "Bultos %" },
+    { key: "bultosPct", label: "Bultos/día %" },
 ];
 
 const dunProductScenarioDefs = [
     { key: "precioPromedioPct", label: "Precio Promedio %" },
-    { key: "bultosPct", label: "Bultos %" },
+    { key: "bultosPct", label: "Bultos/día %" },
     { key: "costoPct", label: "CMV %" },
     { key: "stockValPct", label: "StockVal %" },
 ];
@@ -148,59 +148,106 @@ const ProductScenarioPanel: React.FC<ProductScenarioPanelProps> = ({ product, sc
     }
 
     return (
-        <div style={{marginTop: '14px'}}>
-            <div className={`card ${isCollapsed ? 'is-collapsed' : ''}`}>
+        <div className="mt-6">
+            <div className={`card ${isCollapsed ? 'h-12 overflow-hidden' : ''}`}>
                 <div className="card-header">
                     <h2>{product ? `Escenario: ${product.Producto}` : 'Escenario por Producto'}</h2>
-                    <div className="header-buttons">
-                        <button title={isCollapsed ? "Expandir" : "Contraer"} className="collapse-btn" onClick={() => setIsCollapsed(!isCollapsed)}>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            title={isCollapsed ? "Expandir" : "Contraer"} 
+                            className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 transition-colors text-slate-400" 
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                        >
                             {isCollapsed ? '✚' : '−'}
                         </button>
-                        {product && <button title="Cerrar Panel" className="close-btn" onClick={onClose}>&times;</button>}
+                        {product && (
+                            <button 
+                                title="Cerrar Panel" 
+                                className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-700 transition-colors text-slate-400 text-lg" 
+                                onClick={onClose}
+                            >
+                                &times;
+                            </button>
+                        )}
                     </div>
                 </div>
                 
-                <div className={`collapsible-content ${isCollapsed ? 'collapsed' : ''}`}>
-                    {product && scenario ? (
-                        <>
-                            <div className="tabs" style={{ marginBottom: '14px', alignSelf: 'flex-start' }}>
-                                <button className={`tab ${activeTab === 'scenario' ? 'active' : ''}`} onClick={() => setActiveTab('scenario')}>
-                                    Escenario
-                                </button>
-                                <button className={`tab ${activeTab === 'detail' ? 'active' : ''}`} onClick={() => setActiveTab('detail')}>
-                                    Detalle de Costos
-                                </button>
-                            </div>
+                {!isCollapsed && (
+                    <div className="pt-2">
+                        {product && scenario ? (
+                            <>
+                                <div className="flex items-center gap-1.5 p-1 bg-slate-900/50 rounded-xl border border-slate-700/50 w-fit mb-4">
+                                    <button 
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'scenario' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`} 
+                                        onClick={() => setActiveTab('scenario')}
+                                    >
+                                        Escenario
+                                    </button>
+                                    <button 
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'detail' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`} 
+                                        onClick={() => setActiveTab('detail')}
+                                    >
+                                        Detalle de Costos
+                                    </button>
+                                </div>
 
-                            {activeTab === 'scenario' && (
-                                <>
-                                    <div className="scenarioGrid" style={{gridTemplateColumns: scenarioDefs.length === 4 ? '1fr 1fr' : '1fr 1fr 1fr'}}>
-                                       {scenarioDefs.map(def => (
-                                            <ScenarioSlider
-                                                key={def.key}
-                                                label={def.label}
-                                                value={scenario[def.key as keyof Scenario] as number || 0}
-                                                onChange={(val) => handleSliderChange(def.key as keyof Scenario, val)}
-                                                min={-50}
-                                                max={50}
-                                            />
-                                        ))}
-                                    </div>
-                                    <div className="row" style={{ marginTop: 'auto', paddingTop: '16px' }}>
-                                        <div className="left">
-                                            <button onClick={handleReset} className="btn">Resetear Producto</button>
+                                {activeTab === 'scenario' && (
+                                    <>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                                            {scenarioDefs.map(def => {
+                                                 const isPrecioPromedio = def.key === 'ventaPct' || def.key === 'precioPromedioPct';
+                                                 const isBultos = def.key === 'bultosPct';
+                                                 const isCosto = def.key === 'costoPct';
+                                                 
+                                                 let baseValue = undefined;
+                                                 let formatter = undefined;
+
+                                                 if (isPrecioPromedio && product._original) {
+                                                     const bultos = toNum(product._original.Bultos);
+                                                     if (bultos > 0) {
+                                                         baseValue = toNum(product._original.Venta) / bultos;
+                                                     }
+                                                     formatter = fmtPrice;
+                                                 } else if (isBultos && product._original) {
+                                                     const workingDays = getWorkingDaysPreviousMonth();
+                                                     baseValue = toNum(product._original.Bultos) / workingDays;
+                                                     formatter = fmtRaw;
+                                                 } else if (isCosto && product._original) {
+                                                     const bultos = toNum(product._original.Bultos);
+                                                     if (bultos > 0) {
+                                                         baseValue = toNum(product._original.Costo) / bultos;
+                                                     }
+                                                     formatter = fmtPrice;
+                                                 }
+
+                                                 return (
+                                                     <ScenarioSlider
+                                                         key={def.key}
+                                                         label={def.label}
+                                                         value={scenario[def.key as keyof Scenario] as number || 0}
+                                                         onChange={(val) => handleSliderChange(def.key as keyof Scenario, val)}
+                                                         min={-50}
+                                                         max={50}
+                                                         baseValue={baseValue}
+                                                         formatter={formatter}
+                                                     />
+                                                 );
+                                             })}
                                         </div>
-                                    </div>
-                                </>
-                            )}
-                            {activeTab === 'detail' && <CostDetailView />}
-                        </>
-                    ) : (
-                         <div className="placeholder-card">
-                            <p>Haga clic en "Cfg" en una fila de la tabla para configurar un escenario específico del producto.</p>
-                        </div>
-                    )}
-                </div>
+                                        <div className="mt-6 flex justify-end">
+                                            <button onClick={handleReset} className="btn-action">Resetear Producto</button>
+                                        </div>
+                                    </>
+                                )}
+                                {activeTab === 'detail' && <CostDetailView />}
+                            </>
+                        ) : (
+                             <div className="flex flex-col items-center justify-center py-16 text-slate-500 italic text-sm">
+                                <p>Haga clic en "Cfg" en una fila de la tabla para configurar un escenario específico del producto.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

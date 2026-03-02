@@ -1,31 +1,4 @@
 
-export function toNum(v: any): number {
-    if (v === null || v === undefined) return 0;
-    if (typeof v === 'number') return v;
-    let s = String(v).trim();
-    if (!s) return 0;
-    s = s.replace(/\s/g, '');
-    const hasComma = s.includes(',');
-    const hasDot = s.includes('.');
-    if (hasComma && hasDot) s = s.replace(/\./g, '').replace(',', '.');
-    else if (hasComma && !hasDot) s = s.replace(',', '.');
-    else s = s.replace(/,/g, '');
-    const n = Number(s);
-    return isNaN(n) ? 0 : n;
-}
-
-export function normalizeDriver(d: string): string {
-    const k = String(d || '').trim().toUpperCase();
-    if (!k) return '';
-    if (k === 'VOL VENTA' || k === 'VOLUMEN VENTA') return 'VOLVENTA';
-    if (k === 'VOL STOCK' || k === 'VOLUMEN STOCK') return 'VOLSTOCK';
-    if (k === 'STOCK VAL' || k === 'STOCKVALORIZADO' || k === 'STOCK VALORIZADO') return 'STOCKVAL';
-    if (k === 'VENTAS') return 'VENTA';
-    if (k === 'GANANCIA' || k === 'IIGG' || k === 'RESULT') return 'RESULTADO';
-    if (k === 'BULTO' || k === 'BULTOS') return 'BULTOS';
-    return k;
-}
-
 // A simple deep clone function for plain objects and arrays
 export function cloneDeep<T>(obj: T): T {
     if (obj === null || typeof obj !== 'object') {
@@ -42,27 +15,68 @@ export function cloneDeep<T>(obj: T): T {
 }
 
 // Formatting functions
+export const toNum = (val: any): number => {
+    if (typeof val === 'number') return val;
+    if (typeof val === 'string') {
+        const cleaned = val.replace(/\./g, '').replace(',', '.');
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+    }
+    return 0;
+};
+
 export const fmtRaw = (n?: number | null): string => {
     if (n === null || n === undefined || isNaN(n)) return "";
     return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(n);
 };
 
-export const fmtM = (n?: number | null, displayMillions: boolean = true): string => {
+export const fmtM = (n?: number | null | string, displayMillions: boolean = true): string => {
+    const num = typeof n === 'string' ? parseFloat(n.replace(/\./g, '').replace(',', '.')) : n;
+    if (num === null || num === undefined || isNaN(num)) return "";
+    if (!displayMillions) return fmtRaw(num);
+
+    const m = num / 1_000_000;
+
+    // Use es-AR locale to get dot as thousands separator, with no decimal places.
+    return new Intl.NumberFormat("es-AR", { 
+        maximumFractionDigits: 0 
+    }).format(m) + " M";
+};
+
+export const fmtPrice = (n?: number | null): string => {
     if (n === null || n === undefined || isNaN(n)) return "";
-    if (!displayMillions) return fmtRaw(n);
-
-    const m = n / 1_000_000;
-
-    if (Math.abs(n) < 1_000_000) {
-        // For values under 1M, show 2 decimal places. E.g., 500k -> 0,50 M
-        return new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(m) + " M";
-    } else {
-        // For values 1M and over, show 0 decimal places. E.g., 1.2M -> 1 M
-        return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(m) + " M";
-    }
+    return new Intl.NumberFormat("es-AR", { 
+        style: 'currency', 
+        currency: 'ARS',
+        maximumFractionDigits: 0 
+    }).format(n);
 };
 
 export const pct2 = (x?: number | null): string => {
     if (x === null || x === undefined || isNaN(x)) return "";
     return new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(x) + "%";
 };
+
+export function getWorkingDaysPreviousMonth(): number {
+    const now = new Date();
+    // Get the first day of the current month
+    const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Subtract one day to get the last day of the previous month
+    const lastDayPrevMonth = new Date(firstDayCurrentMonth.getTime() - 1);
+    
+    const year = lastDayPrevMonth.getFullYear();
+    const month = lastDayPrevMonth.getMonth(); // 0-indexed
+    
+    let workingDays = 0;
+    const daysInMonth = lastDayPrevMonth.getDate();
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayOfWeek = date.getDay(); // 0 (Sun) to 6 (Sat)
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            workingDays++;
+        }
+    }
+    
+    return workingDays || 20; // Fallback to 20 if calculation fails
+}

@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-bg-dark: #0f172a;
+  --color-card-dark: #1e293b;
+  --color-border-dark: #334155;
+  --color-accent-blue: #38bdf8;
+  --color-accent-green: #22c55e;
+  --color-accent-yellow: #fbbf24;
+}
+
+body {
+  @apply bg-bg-dark text-slate-200 font-sans antialiased;
+}
+
+.card {
+  @apply bg-card-dark/40 border border-border-dark/50 rounded-xl shadow-xl p-5 backdrop-blur-sm;
+}
+
+.card-header {
+  @apply mb-4 border-b border-border-dark/30 pb-2 flex items-center justify-between;
+}
+
+.card-header h2 {
+  @apply text-xs font-bold uppercase tracking-widest text-slate-400;
+}
+
+.btn-action {
+  @apply px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-all text-xs font-medium flex items-center gap-2;
+}
+
+.badge {
+  @apply px-2 py-0.5 rounded text-[10px] font-bold uppercase;
+}
+
+.badge-act {
+  @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+}
+
+.badge-sim {
+  @apply bg-amber-500/20 text-amber-400 border border-amber-500/30;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-700 rounded-full border-2 border-slate-900 hover:bg-slate-600;
+}
+
+/* Custom Slider */
+.slider-custom {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+}
+
+.slider-custom::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: linear-gradient(to right, var(--accent) var(--progress), #334155 var(--progress));
+  border-radius: 2px;
+}
+
+.slider-custom::-webkit-slider-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -5px;
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.slider-custom::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: #334155;
+  border-radius: 2px;
+}
+
+.slider-custom::-moz-range-progress {
+  background: var(--accent);
+  height: 4px;
+  border-radius: 2px;
+}
+
+.slider-custom::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px var(--accent);
+}

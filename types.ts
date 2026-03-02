@@ -1,13 +1,4 @@
 
-export interface Periodo {
-    id: string;
-    nombre: string;
-    periodo_key: string;
-    fecha_inicio: string;
-    fecha_fin: string;
-    created_at?: string;
-}
-
 export interface Product {
     Producto: string;
     DUN?: string;
@@ -17,6 +8,7 @@ export interface Product {
     VolStock: number | string;
     StockVal: number | string;
     Bultos: number | string;
+    StockIdealVal?: number | string;
     Activo: boolean;
     _sim: boolean;
     _original: any; // Could be more specific if needed
@@ -70,6 +62,7 @@ export interface IndividualGastoScenario {
 export interface Totals {
     VENTA: number;
     RESULTADO: number;
+    COSTO: number;
     VOLVENTA: number;
     VOLSTOCK: number;
     STOCKVAL: number;
@@ -87,6 +80,16 @@ export interface Summary {
     activos: number;
     tot: number;
     sim: number;
+    precioPromedio: number;
+    totalBultos: number;
+    costoPromedio: number;
+    gastosOperativosPct: number;
+    gastosFijosPct: number;
+    markupPct: number;
+    avgMarkUp: number;
+    avgMarkup: number;
+    avgContribMarginalPct: number;
+    avgROI: number;
 }
 
 export interface CalculationResult {

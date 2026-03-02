@@ -83,39 +83,46 @@ const BiRecommendations: React.FC<BiRecommendationsProps> = ({ result, selectedD
 
     return (
         <>
-            <div className="card">
+            <div className="card flex flex-col h-full">
                 <div className="card-header">
                     <h2>{selectedDun ? `Puntos Destacados: ${selectedDun}` : 'Puntos Destacados'}</h2>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', flex: 1, padding: '4px' }}>
+                <div className="flex flex-col gap-3 overflow-y-auto pr-1">
                     {insights.length > 0 ? insights.map((insight, i) => (
-                        <div key={i} className={`pnl-item total insight-card`}
+                        <div key={i} 
+                             className={`p-3 rounded-xl border-l-4 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98] ${
+                                insight.type === 'bad' ? 'bg-rose-500/5 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.1)]' : 
+                                insight.type === 'warn' ? 'bg-amber-500/5 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 
+                                'bg-emerald-500/5 border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                             }`}
                              onDoubleClick={() => handleInsightClick(insight)}
-                             title="Doble clic para ver detalle"
-                             style={{ 
-                                flexDirection: 'column', 
-                                alignItems: 'flex-start',
-                                gap: '6px',
-                                background: insight.type === 'bad' ? 'rgba(251,113,133,0.1)' : 
-                                            insight.type === 'warn' ? 'rgba(251,191,36,0.1)' : 
-                                            'rgba(52,211,153,0.1)',
-                                borderColor: insight.type === 'bad' ? 'var(--bad)' : 
-                                             insight.type === 'warn' ? 'var(--warn)' : 
-                                             'var(--good)'
-                             }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span className={`pill ${insight.type}`}><span className="dot"></span>{insight.title}</span>
+                        >
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <span className={`w-2 h-2 rounded-full ${
+                                    insight.type === 'bad' ? 'bg-rose-500' : 
+                                    insight.type === 'warn' ? 'bg-amber-500' : 
+                                    'bg-emerald-500'
+                                }`}></span>
+                                <h3 className={`text-[11px] font-bold uppercase tracking-wider ${
+                                    insight.type === 'bad' ? 'text-rose-400' : 
+                                    insight.type === 'warn' ? 'text-amber-400' : 
+                                    'text-emerald-400'
+                                }`}>{insight.title}</h3>
                             </div>
-                            <p style={{ margin: 0, fontSize: '11px', lineHeight: '1.4', color: 'var(--text)' }}>
+                            <p className="text-[11px] leading-relaxed text-slate-300 font-medium">
                                 {insight.text}
                             </p>
                         </div>
                     )) : (
-                        <div className="placeholder-card">{selectedDun ? 'Rentabilidad equilibrada para este DUN.' : 'Estructura de rentabilidad equilibrada.'}</div>
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-500 italic text-xs">
+                            {selectedDun ? 'Rentabilidad equilibrada para este DUN.' : 'Estructura de rentabilidad equilibrada.'}
+                        </div>
                     )}
                 </div>
-                <div className="footnote" style={{marginTop:'auto', paddingTop:'8px'}}>
-                    * Sugerencias automáticas basadas en la salud del margen y drivers {selectedDun ? 'para el DUN seleccionado' : 'consolidados'}.
+                <div className="mt-auto pt-4">
+                    <p className="text-[10px] text-slate-500 italic">
+                        * Sugerencias automáticas basadas en la salud del margen y drivers {selectedDun ? 'para el DUN seleccionado' : 'consolidados'}.
+                    </p>
                 </div>
             </div>
             

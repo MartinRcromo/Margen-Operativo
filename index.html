@@ -2,7 +2,7 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-t" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Calculadora de Margen Operativo (CSV)</title>
 
@@ -716,8 +716,61 @@
       color: var(--muted);
     }
 
-  </style>
+    .scenario-toggle {
+      display: flex;
+      align-items: center;
+      background: rgba(255,255,255,.05);
+      border-radius: 999px;
+      padding: 4px;
+      border: 1px solid var(--stroke);
+    }
+    .toggle-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all .2s ease-in-out;
+    }
+    .toggle-btn.active {
+      background: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 2px 10px rgba(110, 231, 255, .3);
+    }
+    .pnl-value .delta {
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 8px;
+        padding: 2px 6px;
+        border-radius: 6px;
+    }
+    .pnl-value .delta.good {
+        color: var(--good);
+        background: rgba(52, 211, 153, .1);
+    }
+    .pnl-value .delta.bad {
+        color: var(--bad);
+        background: rgba(251, 113, 133, .1);
+    }
+    .delta.neutral {
+        color: var(--ink-dim);
+    }
 
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.4/client",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
 </head>
 
 <body data-theme="dark">

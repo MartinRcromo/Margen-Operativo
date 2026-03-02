@@ -3,6 +3,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Gasto, Totals, Sort } from '../types';
 import { fmtM } from '../utils/helpers';
 import ProductRow from './ProductRow';
+import ProductKpiSummary from './ProductKpiSummary';
+import { Summary } from '../types';
 
 interface ProductTableProps {
     products: Product[];
@@ -23,6 +25,7 @@ interface ProductTableProps {
     onUndoAllChanges: () => void;
     displayMillions: boolean;
     hasData: boolean;
+    summary: Summary | null;
 }
 
 const ProductTable: React.FC<ProductTableProps> = (props) => {
@@ -86,25 +89,25 @@ const ProductTable: React.FC<ProductTableProps> = (props) => {
 
 
     const perfPanel = (
-      <div className="tableWrap">
-        <table>
-            <thead>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-700">
+            <thead className="bg-gray-800">
                 <tr>
-                    <th onClick={() => handleSort('Activo')} className="sortable">Status {getSortIcon('Activo')}</th>
-                    <th onClick={() => handleSort('DUN')} className="sortable" style={{ textAlign: 'center' }}>DUN {getSortIcon('DUN')}</th>
-                    <th onClick={() => handleSort('Producto')} className="sortable" style={{ textAlign: 'center' }}>Producto {getSortIcon('Producto')}</th>
-                    <th onClick={() => handleSort('StockVal')} className="sortable" style={{ textAlign: 'center' }}>Stock $ {getSortIcon('StockVal')}</th>
-                    <th onClick={() => handleSort('Venta')} className="sortable" style={{ textAlign: 'center' }}>Venta {getSortIcon('Venta')}</th>
-                    <th onClick={() => handleSort('Costo')} className="sortable" style={{ textAlign: 'center' }}>CMV {getSortIcon('Costo')}</th>
-                    <th onClick={() => handleSort('MarkUp')} className="sortable" title="(Venta - CMV) / CMV" style={{ textAlign: 'center' }}>Mark-Up % {getSortIcon('MarkUp')}</th>
-                    <th onClick={() => handleSort('Resultado')} className="sortable" style={{ textAlign: 'center' }}>Margen Bruto. {getSortIcon('Resultado')}</th>
-                    <th onClick={() => handleSort('MargenOper')} className="sortable" style={{ textAlign: 'center' }}>Contrib. Marg. {getSortIcon('MargenOper')}</th>
-                    <th onClick={() => handleSort('MargenPct')} className="sortable" title="Margen Operativo / Venta" style={{ textAlign: 'center' }}>Contrib Marg. % {getSortIcon('MargenPct')}</th>
-                    <th onClick={() => handleSort('ROI')} className="sortable" title="Margen Operativo / Stock Valorizado" style={{ textAlign: 'center' }}>ROI {getSortIcon('ROI')}</th>
-                    <th style={{ textAlign: 'center' }}>Acción</th>
+                    <th onClick={() => handleSort('Activo')} className="px-4 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Status {getSortIcon('Activo')}</th>
+                    <th onClick={() => handleSort('DUN')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">DUN {getSortIcon('DUN')}</th>
+                    <th onClick={() => handleSort('Producto')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Producto {getSortIcon('Producto')}</th>
+                    <th onClick={() => handleSort('StockVal')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Stock $ {getSortIcon('StockVal')}</th>
+                    <th onClick={() => handleSort('Venta')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Venta {getSortIcon('Venta')}</th>
+                    <th onClick={() => handleSort('Costo')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">CMV {getSortIcon('Costo')}</th>
+                    <th onClick={() => handleSort('MarkUp')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer" title="(Venta - CMV) / CMV">Mark-Up % {getSortIcon('MarkUp')}</th>
+                    <th onClick={() => handleSort('Resultado')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Margen Bruto {getSortIcon('Resultado')}</th>
+                    <th onClick={() => handleSort('MargenOper')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer">Contrib. Marg. {getSortIcon('MargenOper')}</th>
+                    <th onClick={() => handleSort('MargenPct')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer" title="Margen Operativo / Venta">Contrib Marg. % {getSortIcon('MargenPct')}</th>
+                    <th onClick={() => handleSort('ROI')} className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider cursor-pointer" title="Margen Operativo / Stock Valorizado">ROI {getSortIcon('ROI')}</th>
+                    <th className="px-4 py-2 !text-center text-xs font-semibold text-gray-400 uppercase tracking-wider">Acción</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-gray-800 divide-y divide-gray-700">
                 {filteredAndSortedProducts.map((p, i) => {
                     const originalIndex = props.products.findIndex(orig => orig.Producto === p.Producto);
                     return (
@@ -253,51 +256,69 @@ const ProductTable: React.FC<ProductTableProps> = (props) => {
     const gastosPanel = selectedGasto ? renderGastoDrilldown() : renderGastoOverview();
 
     return (
-        <div className="card" style={{ marginTop: '14px' }}>
-            <div className="row">
-                <div className="left">
-                    <div className="tabs">
-                        <button className={`tab ${activeTab === 'perf' ? 'active' : ''}`} onClick={() => setActiveTab('perf')}>
-                            Performance de Líneas
-                        </button>
-                        <button className={`tab ${activeTab === 'gastos' ? 'active' : ''}`} onClick={() => setActiveTab('gastos')} disabled={!props.hasData}>
-                            Desglose de Gastos
-                        </button>
-                    </div>
-                     {activeTab === 'perf' && (
-                        <>
+        <div className="card !p-0 overflow-hidden">
+            <div className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4 border-b border-slate-700/50">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                    <button 
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'perf' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`} 
+                        onClick={() => setActiveTab('perf')}
+                    >
+                        Performance de Líneas
+                    </button>
+                    <button 
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'gastos' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-slate-200'}`} 
+                        onClick={() => setActiveTab('gastos')} 
+                        disabled={!props.hasData}
+                    >
+                        Desglose de Gastos
+                    </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {activeTab === 'perf' && (
+                        <div className="relative">
                             <input
                                 value={props.searchTerm}
                                 onChange={(e) => props.setSearchTerm(e.target.value)}
-                                className="search"
+                                className="bg-slate-900/50 border border-slate-700/50 rounded-lg pl-8 pr-3 py-1.5 text-xs placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-accent-blue w-64"
                                 placeholder="Buscar por producto..."
                                 disabled={!props.hasData}
                             />
-                        </>
-                     )}
-                </div>
-                <div className="left">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">🔍</span>
+                        </div>
+                    )}
+                    
                     {activeTab === 'perf' && (
                         <>
-                            <button onClick={props.onAddProductClick} className="btn primary" disabled={!props.hasData}>
+                            <button onClick={props.onAddProductClick} className="btn-action !bg-accent-blue/10 !border-accent-blue/30 !text-accent-blue hover:!bg-accent-blue/20" disabled={!props.hasData}>
                                  + Nueva Línea
                             </button>
-                            <button onClick={props.onDeleteProductClick} className="btn danger" disabled={!props.hasData}>
+                            <button onClick={props.onDeleteProductClick} className="btn-action !bg-rose-500/10 !border-rose-500/30 !text-rose-400 hover:!bg-rose-500/20" disabled={!props.hasData}>
                                  Eliminar Línea
                             </button>
-                            <button onClick={props.onUndoAllChanges} className="btn" disabled={!props.hasData}>
+                            <button onClick={props.onUndoAllChanges} className="btn-action" disabled={!props.hasData}>
                                 Deshacer todos los cambios
                             </button>
                         </>
                     )}
-                    <span className={`pill ${props.status.kind}`}>
-                        <span className="dot"></span>{props.status.text}
+                    <span className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase flex items-center gap-2 border ${
+                        props.status.kind === 'good' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 
+                        props.status.kind === 'warn' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 
+                        'bg-slate-800 text-slate-400 border-slate-700'
+                    }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                            props.status.kind === 'good' ? 'bg-emerald-500' : 
+                            props.status.kind === 'warn' ? 'bg-amber-500' : 
+                            'bg-slate-500'
+                        }`}></span>
+                        {props.status.text}
                     </span>
                 </div>
             </div>
 
-            <div style={{ marginTop: '14px' }}>
-                {activeTab === 'perf' ? (props.hasData ? perfPanel : <div className="placeholder-card" style={{minHeight: '300px'}}>Cargue datos para ver la performance de líneas.</div>) : gastosPanel}
+            <div className="p-1">
+                {activeTab === 'perf' && props.hasData && <ProductKpiSummary summary={props.summary} />}
+                {activeTab === 'perf' ? (props.hasData ? perfPanel : <div className="flex items-center justify-center py-24 text-slate-500 italic text-sm">Cargue datos para ver la performance de líneas.</div>) : gastosPanel}
             </div>
         </div>
     );

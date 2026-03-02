@@ -1,175 +1,61 @@
 
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Session } from '@supabase/supabase-js';
-import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario, Periodo } from './types';
+import { Product, Gasto, Fijo, Scenario, Totals, CalculationResult, Sort, IndividualGastoScenario, NewProductData, Insight, Summary, DunScenario } from './types';
 import { parseCSV } from './utils/csvParser';
-import { cloneDeep, toNum, normalizeDriver } from './utils/helpers';
-import { getProductosByPeriodo, getGastosByPeriodo, getFijosByPeriodo } from './services/dataService';
-import { supabase, supabaseReady } from './lib/supabase';
+import { cloneDeep } from './utils/helpers';
 import Header from './components/Header';
-import LoginPage from './components/LoginPage';
 import KpiDashboard from './components/KpiDashboard';
 import GlobalScenarios from './components/GlobalScenarios';
 import ProductTable from './components/ProductTable';
 import ProductScenarioPanel from './components/ProductScenarioPanel';
 import Banner from './components/Banner';
-import BiRecommendations from './components/BiRecommendations';
 import AddProductModal from './components/AddProductModal';
 import DeleteProductModal from './components/DeleteProductModal';
 import DunFilterBar from './components/DunFilterBar';
-import ImportModal from './components/ImportModal';
 
 const DRIVER_KEYS = new Set(["VENTA", "RESULTADO", "VOLVENTA", "VOLSTOCK", "STOCKVAL", "BULTOS"]);
 
+const toNum = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "number") return v;
+  let s = String(v).trim();
+  if (!s) return 0;
+  s = s.replace(/\s/g, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) s = s.replace(/\./g, "").replace(",", ".");
+  else if (hasComma && !hasDot) s = s.replace(",", ".");
+  else s = s.replace(/,/g, "");
+  const n = Number(s);
+  return isNaN(n) ? 0 : n;
+};
 
+const normalizeDriver = (d: string) => {
+  const k = String(d || "").trim().toUpperCase();
+  if (!k) return "";
+  if (k === "VOL VENTA" || k === "VOLUMEN VENTA") return "VOLVENTA";
+  if (k === "VOL STOCK" || k === "VOLUMEN STOCK") return "VOLSTOCK";
+  if (k === "STOCK VAL" || k === "STOCKVALORIZADO" || k === "STOCK VALORIZADO") return "STOCKVAL";
+  if (k === "VENTAS") return "VENTA";
+  if (k === "GANANCIA" || k === "IIGG" || k === "RESULT") return "RESULTADO";
+  if (k === "BULTO" || k === "BULTOS") return "BULTOS";
+  return k;
+};
 
-const App: React.FC = () => {
-  // FIX: Corrected a typo in the useState hook declaration.
-  const [products, setProducts] = useState<Product[]>([]);
-  const [gastos, setGastos] = useState<Gasto[]>([]);
-  const [fijos, setFijos] = useState<Fijo[]>([]);
-  
-  const [initialProducts, setInitialProducts] = useState<Product[]>([]);
-  const [initialGastos, setInitialGastos] = useState<Gasto[]>([]);
-  const [initialFijos, setInitialFijos] = useState<Fijo[]>([]);
-  
-  const [displayMillions, setDisplayMillions] = useState<boolean>(true);
-  const [globalScenario, setGlobalScenario] = useState<Scenario>({ ventaPct: 0, costoPct: 0, volVentaPct: 0, volStockPct: 0, stockValPct: 0, bultosPct: 0 });
-  const [dunScenarios, setDunScenarios] = useState<{ [key: string]: DunScenario }>({});
-  const [gastosOperativosPct, setGastosOperativosPct] = useState(0);
-  const [gastosFijosPct, setGastosFijosPct] = useState(0);
-  const [individualGastosScenarios, setIndividualGastosScenarios] = useState<IndividualGastoScenario>({ operativos: {}, fijos: {} });
-  const [scenarioByProduct, setScenarioByProduct] = useState<{ [key: string]: Scenario }>({});
-  const [sort, setSort] = useState<Sort>({ key: 'MargenOper', order: 'desc' });
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDun, setSelectedDun] = useState('');
-  const [status, setStatus] = useState({ text: 'Esperando datos', kind: 'neutral' });
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedPeriodoId, setSelectedPeriodoId] = useState('');
-  const [periodoRefresh, setPeriodoRefresh] = useState(0);
-
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Auth session
-  useEffect(() => {
-    if (!supabaseReady) return;
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Theme Toggle
-  useEffect(() => {
-    const theme = localStorage.getItem('theme') || 'dark';
-    document.body.dataset.theme = theme;
-  }, []);
-  
-  const toggleTheme = () => {
-    const newTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
-    document.body.dataset.theme = newTheme;
-    localStorage.setItem('theme', newTheme);
-  };
-  
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = event.target.files;
-    if (!fileList || fileList.length === 0) return;
-
-    try {
-      const files = Array.from(fileList);
-      const byName: { [key: string]: File } = {};
-      files.forEach((f: File) => byName[f.name.toUpperCase()] = f);
-
-      const fileValues = Object.values(byName);
-      const prodFile = fileValues.find(f => f.name.toUpperCase().includes("PRODUCTOS") && f.name.toUpperCase().endsWith(".CSV"));
-      const gasFile = fileValues.find(f => f.name.toUpperCase().includes("GASTOS") && f.name.toUpperCase().endsWith(".CSV"));
-      const fixFile = fileValues.find(f => f.name.toUpperCase().includes("FIJOS") && f.name.toUpperCase().endsWith(".CSV"));
-      const dunFile = fileValues.find(f => f.name.toUpperCase().includes("DUN") && f.name.toUpperCase().endsWith(".CSV"));
-
-      if (!prodFile || !gasFile) {
-        alert("Subir PRODUCTOS.csv y GASTOS.csv juntos.");
-        return;
-      }
-      
-      const pick = (obj: any, key: string) => {
-          const k = Object.keys(obj).find(x => x.trim().toLowerCase() === key.toLowerCase());
-          return k ? obj[k] : "";
-      };
-      
-      const dunMap: { [key: string]: string } = {};
-      if (dunFile) {
-          const parsedDuns = parseCSV(await dunFile.text());
-          parsedDuns.forEach(d => {
-              const prodName = pick(d, "Producto");
-              const dunName = pick(d, "DUN");
-              if (prodName && dunName) {
-                  dunMap[prodName.trim()] = dunName.trim();
-              }
-          });
-      }
-
-      const parsedProds = parseCSV(await prodFile.text()).map(r => {
-        const prodName = pick(r, "Producto");
-        const p: Product = {
-          Producto: prodName, 
-          DUN: pick(r, "DUN") || dunMap[prodName.trim()],
-          Venta: pick(r, "Venta"), Costo: pick(r, "Costo"),
-          VolVenta: pick(r, "VolVenta"), VolStock: pick(r, "VolStock"), StockVal: pick(r, "StockVal"), Bultos: pick(r, "Bultos"),
-          Activo: true, _sim: false, _original: null
-        };
-        p._original = cloneDeep(p);
-        return p;
-      }).filter(x => x.Producto);
-      
-      const initialTotalVenta = parsedProds.reduce((sum, p) => sum + toNum(p.Venta), 0);
-      
-      const parsedGastos = parseCSV(await gasFile.text()).map(r => {
-        const tipoStr = pick(r, "Directo/Indirecto").trim().toLowerCase();
-        const esDirecto = tipoStr === 'directo';
-        const importe = toNum(pick(r, "Importe"));
-        
-        let pctSobreVenta = 0;
-        if (esDirecto && initialTotalVenta > 0) {
-            pctSobreVenta = (importe / initialTotalVenta) * 100;
-        }
-
-        const g: Gasto = {
-            Gasto: pick(r, "Gasto"), 
-            Importe: importe, 
-            Driver: pick(r, "Driver"),
-            Tipo: esDirecto ? 'Directo' : 'Indirecto',
-            PctVenta: pctSobreVenta,
-        };
-        return g;
-      }).filter(x => x.Gasto);
-
-      const parsedFijos = fixFile ? parseCSV(await fixFile.text()).map(r => ({
-          GastoFijo: pick(r, "GastoFijo"), Importe: pick(r, "Importe")
-      })) : [];
-
-      setInitialProducts(cloneDeep(parsedProds));
-      setInitialGastos(cloneDeep(parsedGastos));
-      setInitialFijos(cloneDeep(parsedFijos));
-      
-      setProducts(cloneDeep(parsedProds));
-      setGastos(cloneDeep(parsedGastos));
-      setFijos(cloneDeep(parsedFijos));
-      setIndividualGastosScenarios({ operativos: {}, fijos: {} });
-
-    } catch (error) {
-      console.error(error);
-      alert("Error al procesar los archivos CSV. Revisa el formato.");
-    } finally {
-        if(fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-  
-  const calculationResult: CalculationResult | null = useMemo(() => {
+const runCalculation = (
+    products: Product[],
+    gastos: Gasto[],
+    fijos: Fijo[],
+    globalScenario: Scenario,
+    scenarioByProduct: { [key: string]: Scenario },
+    gastosOperativosPct: number,
+    gastosFijosPct: number,
+    individualGastosScenarios: IndividualGastoScenario,
+    selectedDun: string,
+    dunScenarios: { [key: string]: DunScenario },
+    scenarioMode: 'REAL' | 'IDEAL'
+): CalculationResult | null => {
     if (products.length === 0) return null;
     
     const multFromPct = (pct: number) => 1 + (Number(pct || 0) / 100);
@@ -189,6 +75,8 @@ const App: React.FC = () => {
         const isSim = ps && Object.values(ps).some(v => v != null && v !== 0);
         const original = p._original || p;
         const newP = { ...p, _sim: isSim };
+
+
         const useDunProductScenario = selectedDun && p.DUN === selectedDun && isSim && ps.precioPromedioPct != null;
         const mC = multFromPct(g.costoPct) * multFromPct(isSim ? ps.costoPct : 0);
         const mVV = multFromPct(g.volVentaPct) * multFromPct(isSim ? ps.volVentaPct : 0);
@@ -215,17 +103,11 @@ const App: React.FC = () => {
             const originalVenta = toNum(original.Venta);
             const originalPrecio = originalBultos > 0 ? originalVenta / originalBultos : 0;
 
-            // Combine all price/sale multipliers
-            // Combine all price/sale multipliers
             const priceMultiplier = multFromPct(g.ventaPct) * multFromPct(isSim ? (ps.precioPromedioPct || ps.ventaPct || 0) : 0);
-
-            // Bultos multiplier is now separate and direct
             const bultosMultiplier = multFromPct(g.bultosPct) * multFromPct(isSim ? (ps.bultosPct || 0) : 0);
             newP.Bultos = toNum(original.Bultos) * bultosMultiplier;
 
             const newPrecio = originalPrecio * priceMultiplier;
-            
-            // The final sale is ALWAYS the product of the new components
             newP.Venta = newP.Bultos * newPrecio;
         }
         const dunScenario = selectedDun && p.DUN === selectedDun ? dunScenarios[selectedDun] : null;
@@ -237,6 +119,32 @@ const App: React.FC = () => {
             const newPrecio = originalPrecio * multFromPct(dunScenario.precioPromedioPct);
             newP.Venta = newP.Bultos * newPrecio;
             newP.Costo *= multFromPct(dunScenario.cmvPct);
+        }
+        if (scenarioMode === 'IDEAL' && p._original && toNum(p._original.StockIdealVal) > 0) {
+            const originalData = p._original;
+            const stockIdealVal = toNum(originalData.StockIdealVal);
+
+            newP.StockVal = stockIdealVal;
+
+            const stockReal = toNum(originalData.VolStock);
+            const stockValReal = toNum(originalData.StockVal);
+            
+            let unitValue = 0;
+            if (stockReal > 0 && stockValReal > 0) {
+                unitValue = stockValReal / stockReal;
+            } else {
+                const volVenta = toNum(originalData.VolVenta);
+                const costo = toNum(originalData.Costo);
+                if (volVenta > 0) {
+                    unitValue = costo / volVenta;
+                }
+            }
+
+            if (unitValue > 0) {
+                newP.VolStock = stockIdealVal / unitValue;
+            } else {
+                newP.VolStock = 0;
+            }
         }
         return newP;
     });
@@ -252,6 +160,7 @@ const App: React.FC = () => {
     const totals: Totals = {
         VENTA: activeProds.reduce((a, p) => a + p.Venta, 0),
         RESULTADO: activeProds.reduce((a, p) => a + p.Resultado!, 0),
+        COSTO: activeProds.reduce((a, p) => a + (p.Costo as number), 0),
         VOLVENTA: activeProds.reduce((a, p) => a + p.VolVenta, 0),
         VOLSTOCK: activeProds.reduce((a, p) => a + p.VolStock, 0),
         STOCKVAL: activeProds.reduce((a, p) => a + p.StockVal, 0),
@@ -322,6 +231,7 @@ const App: React.FC = () => {
 
     const totalMargenOper = activeProds.reduce((a, p) => a + p.MargenOper!, 0);
     const totalGastosOperativos = totals.RESULTADO - totalMargenOper;
+    const totalBultos = activeProds.reduce((a, p) => a + toNum(p.Bultos), 0);
 
     const summary = {
         totalVenta: totals.VENTA,
@@ -332,11 +242,189 @@ const App: React.FC = () => {
         totalFijos,
         margenOperPctGlobal: (totals.VENTA === 0) ? 0 : (totalMargenOper / totals.VENTA),
         activos: activeProds.length, tot: allProds.length,
-        sim: allProds.filter(x => x._sim).length
+        sim: allProds.filter(x => x._sim).length,
+        precioPromedio: totalBultos === 0 ? 0 : totals.VENTA / totalBultos,
+        totalBultos,
+        costoPromedio: totalBultos === 0 ? 0 : totals.COSTO / totalBultos,
+        gastosOperativosPct: (totals.VENTA === 0) ? 0 : (totalGastosOperativos / totals.VENTA),
+        gastosFijosPct: (totals.VENTA === 0) ? 0 : (totalFijos / totals.VENTA),
+        markupPct: (totals.COSTO === 0) ? 0 : (totals.RESULTADO / totals.COSTO),
+        avgMarkUp: 0,
+        avgMarkup: 0,
+        avgContribMarginalPct: 0,
+        avgROI: 0
     };
     
     return { allProds, gastos: currentGastos, totals, summary };
-  }, [products, gastos, fijos, globalScenario, scenarioByProduct, gastosOperativosPct, gastosFijosPct, individualGastosScenarios, selectedDun, dunScenarios]);
+};
+
+
+const App: React.FC = () => {
+  // FIX: Corrected a typo in the useState hook declaration.
+  const [products, setProducts] = useState<Product[]>([]);
+  const [gastos, setGastos] = useState<Gasto[]>([]);
+  const [fijos, setFijos] = useState<Fijo[]>([]);
+  
+  const [initialProducts, setInitialProducts] = useState<Product[]>([]);
+  const [initialGastos, setInitialGastos] = useState<Gasto[]>([]);
+  const [initialFijos, setInitialFijos] = useState<Fijo[]>([]);
+  
+  const [displayMillions, setDisplayMillions] = useState<boolean>(true);
+  const [globalScenario, setGlobalScenario] = useState<Scenario>({ ventaPct: 0, costoPct: 0, volVentaPct: 0, volStockPct: 0, stockValPct: 0, bultosPct: 0 });
+  const [dunScenarios, setDunScenarios] = useState<{ [key: string]: DunScenario }>({});
+  const [gastosOperativosPct, setGastosOperativosPct] = useState(0);
+  const [gastosFijosPct, setGastosFijosPct] = useState(0);
+  const [individualGastosScenarios, setIndividualGastosScenarios] = useState<IndividualGastoScenario>({ operativos: {}, fijos: {} });
+  const [scenarioByProduct, setScenarioByProduct] = useState<{ [key: string]: Scenario }>({});
+  const [sort, setSort] = useState<Sort>({ key: 'MargenOper', order: 'desc' });
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDun, setSelectedDun] = useState('');
+  const [status, setStatus] = useState({ text: 'Esperando datos', kind: 'neutral' });
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [scenarioMode, setScenarioMode] = useState<'REAL' | 'IDEAL'>('REAL');
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Theme Toggle
+  useEffect(() => {
+    const theme = localStorage.getItem('theme') || 'dark';
+    document.body.dataset.theme = theme;
+  }, []);
+  
+  const toggleTheme = () => {
+    const newTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.body.dataset.theme = newTheme;
+    localStorage.setItem('theme', newTheme);
+  };
+  
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    try {
+      const files = Array.from(fileList);
+      const byName: { [key: string]: File } = {};
+      files.forEach((f: File) => byName[f.name.toUpperCase()] = f);
+
+      const fileValues = Object.values(byName);
+      const prodFile = fileValues.find(f => f.name.toUpperCase().includes("PRODUCTOS") && f.name.toUpperCase().endsWith(".CSV"));
+      const gasFile = fileValues.find(f => f.name.toUpperCase().includes("GASTOS") && f.name.toUpperCase().endsWith(".CSV"));
+      const fixFile = fileValues.find(f => f.name.toUpperCase().includes("FIJOS") && f.name.toUpperCase().endsWith(".CSV"));
+      const dunFile = fileValues.find(f => f.name.toUpperCase().includes("DUN") && f.name.toUpperCase().endsWith(".CSV"));
+
+      if (!prodFile || !gasFile) {
+        alert("Subir PRODUCTOS.csv y GASTOS.csv juntos.");
+        return;
+      }
+      
+      const pick = (obj: any, key: string) => {
+          const k = Object.keys(obj).find(x => x.trim().toLowerCase() === key.toLowerCase());
+          return k ? obj[k] : "";
+      };
+      
+      const dunMap: { [key: string]: string } = {};
+      if (dunFile) {
+          const parsedDuns = parseCSV(await dunFile.text());
+          parsedDuns.forEach(d => {
+              const prodName = pick(d, "Producto");
+              const dunName = pick(d, "DUN");
+              if (prodName && dunName) {
+                  dunMap[prodName.trim()] = dunName.trim();
+              }
+          });
+      }
+
+      const parsedProds = parseCSV(await prodFile.text()).map(r => {
+        const prodName = pick(r, "Producto");
+        const p: Product = {
+          Producto: prodName, 
+          DUN: dunMap[prodName.trim()],
+          Venta: pick(r, "Venta"), Costo: pick(r, "Costo"),
+          VolVenta: pick(r, "VolVenta"), VolStock: pick(r, "VolStock"), StockVal: pick(r, "StockVal"), Bultos: pick(r, "Bultos"),
+          StockIdealVal: pick(r, "StockIdealVal"),
+          Activo: true, _sim: false, _original: null
+        };
+        p._original = cloneDeep(p);
+        return p;
+      }).filter(x => x.Producto);
+      
+      const initialTotalVenta = parsedProds.reduce((sum, p) => sum + toNum(p.Venta), 0);
+      
+      const parsedGastos = parseCSV(await gasFile.text()).map(r => {
+        const tipoStr = pick(r, "Directo/Indirecto").trim().toLowerCase();
+        const esDirecto = tipoStr === 'directo';
+        const importe = toNum(pick(r, "Importe"));
+        
+        let pctSobreVenta = 0;
+        if (esDirecto && initialTotalVenta > 0) {
+            pctSobreVenta = (importe / initialTotalVenta) * 100;
+        }
+
+        const g: Gasto = {
+            Gasto: pick(r, "Gasto"), 
+            Importe: importe, 
+            Driver: pick(r, "Driver"),
+            Tipo: esDirecto ? 'Directo' : 'Indirecto',
+            PctVenta: pctSobreVenta,
+        };
+        return g;
+      }).filter(x => x.Gasto);
+
+      const parsedFijos = fixFile ? parseCSV(await fixFile.text()).map(r => ({
+          GastoFijo: pick(r, "GastoFijo"), Importe: pick(r, "Importe")
+      })) : [];
+
+      setInitialProducts(cloneDeep(parsedProds));
+      setInitialGastos(cloneDeep(parsedGastos));
+      setInitialFijos(cloneDeep(parsedFijos));
+      
+      setProducts(cloneDeep(parsedProds));
+      setGastos(cloneDeep(parsedGastos));
+      setFijos(cloneDeep(parsedFijos));
+      setIndividualGastosScenarios({ operativos: {}, fijos: {} });
+
+    } catch (error) {
+      console.error(error);
+      alert("Error al procesar los archivos CSV. Revisa el formato.");
+    } finally {
+        if(fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+  
+  const calculationResult: CalculationResult | null = useMemo(() => {
+    return runCalculation(
+        products,
+        gastos,
+        fijos,
+        globalScenario,
+        scenarioByProduct,
+        gastosOperativosPct,
+        gastosFijosPct,
+        individualGastosScenarios,
+        selectedDun,
+        dunScenarios,
+        scenarioMode
+    );
+  }, [products, gastos, fijos, globalScenario, scenarioByProduct, gastosOperativosPct, gastosFijosPct, individualGastosScenarios, selectedDun, dunScenarios, scenarioMode]);
+
+  const baselineResult: CalculationResult | null = useMemo(() => {
+    if (initialProducts.length === 0) return null;
+    return runCalculation(
+        initialProducts,
+        initialGastos,
+        initialFijos,
+        { ventaPct: 0, costoPct: 0, volVentaPct: 0, volStockPct: 0, stockValPct: 0, bultosPct: 0 },
+        {},
+        0,
+        0,
+        { operativos: {}, fijos: {} },
+        selectedDun,
+        {},
+        'REAL'
+    );
+  }, [initialProducts, initialGastos, initialFijos, selectedDun]);
 
     const displaySummary: Summary | null = useMemo(() => {
         if (!calculationResult) return null;
@@ -347,7 +435,7 @@ const App: React.FC = () => {
         const dunProducts = calculationResult.allProds.filter(p => p.DUN === selectedDun);
         const activeDunProducts = dunProducts.filter(p => p.Activo);
 
-        const dunSummaryData = {
+        const dunSummaryData: Summary = {
             totalVenta: activeDunProducts.reduce((sum, p) => sum + (p.Venta as number), 0),
             totalResultado: activeDunProducts.reduce((sum, p) => sum + p.Resultado!, 0),
             totalMargenOper: activeDunProducts.reduce((sum, p) => sum + p.MargenOper!, 0),
@@ -357,14 +445,82 @@ const App: React.FC = () => {
             margenOperPctGlobal: 0,
             activos: activeDunProducts.length,
             tot: dunProducts.length,
-            sim: dunProducts.filter(x => x._sim).length
+            sim: dunProducts.filter(x => x._sim).length,
+            precioPromedio: 0,
+            totalBultos: 0,
+            costoPromedio: 0,
+            gastosOperativosPct: 0,
+            gastosFijosPct: 0,
+            markupPct: 0,
+            avgMarkUp: 0,
+            avgMarkup: 0,
+            avgContribMarginalPct: 0,
+            avgROI: 0
         };
 
+        const totalBultos = activeDunProducts.reduce((sum, p) => sum + toNum(p.Bultos), 0);
+        const totalCosto = activeDunProducts.reduce((sum, p) => sum + toNum(p.Costo), 0);
+        dunSummaryData.totalBultos = totalBultos;
+        dunSummaryData.precioPromedio = totalBultos === 0 ? 0 : dunSummaryData.totalVenta / totalBultos;
+        dunSummaryData.costoPromedio = totalBultos === 0 ? 0 : totalCosto / totalBultos;
         dunSummaryData.totalGastosOperativos = dunSummaryData.totalResultado - dunSummaryData.totalMargenOper;
         dunSummaryData.margenOperPctGlobal = dunSummaryData.totalVenta === 0 ? 0 : dunSummaryData.totalMargenOper / dunSummaryData.totalVenta;
 
+        // New KPIs for DUN view
+        dunSummaryData.gastosOperativosPct = dunSummaryData.totalVenta === 0 ? 0 : (dunSummaryData.totalGastosOperativos / dunSummaryData.totalVenta);
+        dunSummaryData.gastosFijosPct = 0; 
+        dunSummaryData.markupPct = totalCosto === 0 ? 0 : (dunSummaryData.totalResultado / totalCosto);
+
         return dunSummaryData;
     }, [calculationResult, selectedDun]);
+
+    const baselineSummary: Summary | null = useMemo(() => {
+        if (!baselineResult) return null;
+        if (!selectedDun) {
+            return baselineResult.summary;
+        }
+
+        const dunProducts = baselineResult.allProds.filter(p => p.DUN === selectedDun);
+        const activeDunProducts = dunProducts.filter(p => p.Activo);
+
+        const dunSummaryData: Summary = {
+            totalVenta: activeDunProducts.reduce((sum, p) => sum + (p.Venta as number), 0),
+            totalResultado: activeDunProducts.reduce((sum, p) => sum + p.Resultado!, 0),
+            totalMargenOper: activeDunProducts.reduce((sum, p) => sum + p.MargenOper!, 0),
+            totalGastosOperativos: 0,
+            resultadoFinal: 0, // Not applicable for DUN view
+            totalFijos: 0, // Not applicable for DUN view
+            margenOperPctGlobal: 0,
+            activos: activeDunProducts.length,
+            tot: dunProducts.length,
+            sim: dunProducts.filter(x => x._sim).length,
+            precioPromedio: 0,
+            totalBultos: 0,
+            costoPromedio: 0,
+            gastosOperativosPct: 0,
+            gastosFijosPct: 0,
+            markupPct: 0,
+            avgMarkUp: 0,
+            avgMarkup: 0,
+            avgContribMarginalPct: 0,
+            avgROI: 0
+        };
+
+        const totalBultos = activeDunProducts.reduce((sum, p) => sum + toNum(p.Bultos), 0);
+        const totalCosto = activeDunProducts.reduce((sum, p) => sum + toNum(p.Costo), 0);
+        dunSummaryData.totalBultos = totalBultos;
+        dunSummaryData.precioPromedio = totalBultos === 0 ? 0 : dunSummaryData.totalVenta / totalBultos;
+        dunSummaryData.costoPromedio = totalBultos === 0 ? 0 : totalCosto / totalBultos;
+        dunSummaryData.totalGastosOperativos = dunSummaryData.totalResultado - dunSummaryData.totalMargenOper;
+        dunSummaryData.margenOperPctGlobal = dunSummaryData.totalVenta === 0 ? 0 : dunSummaryData.totalMargenOper / dunSummaryData.totalVenta;
+
+        // New KPIs for DUN view
+        dunSummaryData.gastosOperativosPct = dunSummaryData.totalVenta === 0 ? 0 : (dunSummaryData.totalGastosOperativos / dunSummaryData.totalVenta);
+        dunSummaryData.gastosFijosPct = 0; 
+        dunSummaryData.markupPct = totalCosto === 0 ? 0 : (dunSummaryData.totalResultado / totalCosto);
+
+        return dunSummaryData;
+    }, [baselineResult, selectedDun]);
 
 
   useEffect(() => {
@@ -376,30 +532,11 @@ const App: React.FC = () => {
     }
   }, [calculationResult]);
 
-  const biResult: CalculationResult | null = useMemo(() => {
-    if (!calculationResult) return null;
-    if (!selectedDun) {
-        return calculationResult;
-    }
-
-    // If a DUN is selected, create a new CalculationResult scoped to that DUN
-    const dunProducts = calculationResult.allProds.filter(p => p.DUN === selectedDun);
-    const dunSummary = displaySummary; // This is already calculated for the DUN
-
-    if (!dunSummary) return null;
-
-    return {
-        ...calculationResult,
-        allProds: dunProducts,
-        summary: dunSummary,
-    };
-  }, [calculationResult, selectedDun, displaySummary]);
-
   const loadSampleData = useCallback(() => {
     const prods = [
-      { Producto: "Opticas", DUN: "Juan Perez", Venta: 12000000, Costo: 8000000, VolVenta: 300, VolStock: 900, StockVal: 6500000, Bultos: 1200, Activo: true, _sim:false },
-      { Producto: "Paragolpes", DUN: "Maria Garcia", Venta: 9000000, Costo: 6400000, VolVenta: 220, VolStock: 500, StockVal: 4200000, Bultos: 900, Activo: true, _sim:false },
-      { Producto: "Espejos", DUN: "Juan Perez", Venta: 5000000, Costo: 3800000, VolVenta: 90, VolStock: 700, StockVal: 5100000, Bultos: 700, Activo: true, _sim:false },
+      { Producto: "Opticas", DUN: "Juan Perez", Venta: 12000000, Costo: 8000000, VolVenta: 300, VolStock: 900, StockVal: 6500000, Bultos: 1200, StockIdealVal: 4000000, Activo: true, _sim:false },
+      { Producto: "Paragolpes", DUN: "Maria Garcia", Venta: 9000000, Costo: 6400000, VolVenta: 220, VolStock: 500, StockVal: 4200000, Bultos: 900, StockIdealVal: 3000000, Activo: true, _sim:false },
+      { Producto: "Espejos", DUN: "Juan Perez", Venta: 5000000, Costo: 3800000, VolVenta: 90, VolStock: 700, StockVal: 5100000, Bultos: 700, StockIdealVal: 2000000, Activo: true, _sim:false },
     ].map(p => ({ ...p, _original: cloneDeep(p) }));
     const sampleGastos: Gasto[] = [
       { Gasto: "Sueldos Logística", Importe: 1400000, Driver: "Bultos", Tipo: 'Indirecto' },
@@ -505,56 +642,38 @@ const App: React.FC = () => {
     return calculationResult.allProds.find(p => p.Producto === selectedProduct.Producto) || null;
   }, [selectedProduct, calculationResult]);
 
-  const loadDataFromState = useCallback((prods: Product[], gas: Gasto[], fij: Fijo[]) => {
-    const prodsWithOriginal = prods.map(p => ({ ...p, _original: p._original ?? cloneDeep(p) }));
-    setInitialProducts(cloneDeep(prodsWithOriginal));
-    setInitialGastos(cloneDeep(gas));
-    setInitialFijos(cloneDeep(fij));
-    setProducts(cloneDeep(prodsWithOriginal));
-    setGastos(cloneDeep(gas));
-    setFijos(cloneDeep(fij));
-    setGlobalScenario({ ventaPct: 0, costoPct: 0, volVentaPct: 0, volStockPct: 0, stockValPct: 0, bultosPct: 0 });
-    setScenarioByProduct({});
-    setIndividualGastosScenarios({ operativos: {}, fijos: {} });
-    setDunScenarios({});
-    setSelectedProduct(null);
-    setSearchTerm('');
-    setSelectedDun('');
-  }, []);
-
-  const handleImportSuccess = useCallback((periodo: Periodo, prods: Product[], gas: Gasto[], fij: Fijo[]) => {
-    setSelectedPeriodoId(periodo.id);
-    setPeriodoRefresh(n => n + 1);
-    loadDataFromState(prods, gas, fij);
-  }, [loadDataFromState]);
-
-  const handlePeriodoSelect = useCallback(async (periodoId: string) => {
-    setSelectedPeriodoId(periodoId);
-    if (!periodoId) return;
-    try {
-      const [prods, gas, fij] = await Promise.all([
-        getProductosByPeriodo(periodoId),
-        getGastosByPeriodo(periodoId),
-        getFijosByPeriodo(periodoId),
-      ]);
-      loadDataFromState(prods, gas, fij);
-    } catch (err: any) {
-      alert(`Error al cargar el periodo: ${err.message}`);
+  const handleManualVentaChange = (newTotalVenta: number) => {
+    if (!displaySummary || displaySummary.totalVenta === 0) return;
+    
+    const currentVenta = displaySummary.totalVenta;
+    
+    if (selectedDun) {
+      const currentDunScenario = dunScenarios[selectedDun] || { precioPromedioPct: 0 };
+      const currentPct = currentDunScenario.precioPromedioPct || 0;
+      const newAdj = (newTotalVenta / currentVenta) * (1 + currentPct / 100);
+      const newPct = (newAdj - 1) * 100;
+      
+      setDunScenarios({
+        ...dunScenarios,
+        [selectedDun]: {
+          ...(dunScenarios[selectedDun] || { cmvPct: 0, gastosOperativosPct: 0, bultosPct: 0, precioPromedioPct: 0 }),
+          precioPromedioPct: newPct
+        }
+      });
+    } else {
+      const currentPct = globalScenario.ventaPct;
+      const newAdj = (newTotalVenta / currentVenta) * (1 + currentPct / 100);
+      const newPct = (newAdj - 1) * 100;
+      
+      setGlobalScenario({
+        ...globalScenario,
+        ventaPct: newPct
+      });
     }
-  }, [loadDataFromState]);
-
-  // Auth guards (only when Supabase is configured)
-  if (supabaseReady && session === undefined) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--muted)' }}>Verificando sesión...</div>;
-  }
-  if (supabaseReady && session === null) {
-    return <LoginPage />;
-  }
-
-  const handleSignOut = supabaseReady ? () => supabase.auth.signOut() : undefined;
+  };
 
   return (
-    <div className="wrap">
+    <div className="min-h-screen bg-bg-dark text-slate-200 p-4 lg:p-6 space-y-6">
       <Header
         displayMillions={displayMillions}
         onDisplayMillionsChange={setDisplayMillions}
@@ -562,13 +681,10 @@ const App: React.FC = () => {
         onLoadSample={loadSampleData}
         onThemeChange={toggleTheme}
         fileInputRef={fileInputRef}
-        onImportClick={() => setIsImportModalOpen(true)}
-        selectedPeriodoId={selectedPeriodoId}
-        onPeriodoSelect={handlePeriodoSelect}
-        periodoRefresh={periodoRefresh}
-        onSignOut={handleSignOut}
-        userEmail={session?.user?.email}
+        scenarioMode={scenarioMode}
+        onScenarioModeChange={setScenarioMode}
       />
+      
       <Banner />
       
       <DunFilterBar
@@ -579,11 +695,13 @@ const App: React.FC = () => {
         hasData={products.length > 0}
       />
 
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <KpiDashboard 
-          summary={displaySummary} 
+          summary={baselineSummary} 
+          globalSummary={baselineResult?.summary}
           selectedDun={selectedDun}
           displayMillions={displayMillions} 
+          title={selectedDun ? `Original: ${selectedDun}` : 'Cuadro de Resultados Original'}
         />
         <GlobalScenarios
             gastos={gastos}
@@ -600,8 +718,17 @@ const App: React.FC = () => {
             selectedDun={selectedDun}
             dunScenarios={dunScenarios}
             onDunScenariosChange={setDunScenarios}
+            baselineSummary={baselineSummary}
         />
-        <BiRecommendations result={biResult} selectedDun={selectedDun} />
+        <KpiDashboard 
+          summary={displaySummary} 
+          globalSummary={calculationResult?.summary}
+          selectedDun={selectedDun}
+          displayMillions={displayMillions} 
+          title={selectedDun ? `Modificado: ${selectedDun}` : 'Cuadro de Resultados Modificado'}
+          isBaseline={false}
+          onVentaChange={handleManualVentaChange}
+        />
       </div>
 
       <ProductScenarioPanel
@@ -632,6 +759,7 @@ const App: React.FC = () => {
         onUndoAllChanges={handleUndoAllChanges}
         displayMillions={displayMillions}
         hasData={products.length > 0}
+        summary={displaySummary}
       />
 
       <AddProductModal
@@ -646,12 +774,6 @@ const App: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onDeleteProduct={handleDeleteProduct}
         products={products}
-      />
-
-      <ImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onSuccess={handleImportSuccess}
       />
     </div>
   );
